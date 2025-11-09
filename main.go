@@ -50,6 +50,12 @@ func UserDBInit() (*sql.DB, error) {
 }
 
 func main() {
+	// 💡 1. 環境変数 PORT を取得し、デフォルト値を設定
+	port := os.Getenv("PORT")
+	if port == "" {
+		// 環境変数がない場合、Dockerfileや設定に合わせて8000をデフォルトとする
+		port = "8000"
+	}
 	//--- DBの接続---
 	db, err := UserDBInit()
 	if err != nil {
@@ -69,9 +75,9 @@ func main() {
 
 	closeDBWithSysCall(db)
 
-	log.Println("Listening on :8000")
-
-	if err := http.ListenAndServe(":8000", wrappedHandler); err != nil {
+	addr := ":" + port
+	log.Printf("Listening on %s", addr)
+	if err := http.ListenAndServe(addr, wrappedHandler); err != nil {
 		log.Fatal(err)
 	}
 }
