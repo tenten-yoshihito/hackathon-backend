@@ -23,11 +23,20 @@ func UserDBInit() (*sql.DB, error) {
 	if err := godotenv.Load(); err != nil {
 		return nil, fmt.Errorf("環境ファイル(.env)のロードに失敗: %w", err)
 	}
+	// mysqlUser := os.Getenv("MYSQL_USER")
+	// mysqlUserPwd := os.Getenv("MYSQL_PASSWORD")
+	// mysqlDatabase := os.Getenv("MYSQL_DATABASE")
+	// dsn := fmt.Sprintf("%s:%s@(localhost:3306)/%s", mysqlUser, mysqlUserPwd, mysqlDatabase)
+	// db, err := sql.Open("mysql", dsn)
+	// DB接続のための準備
 	mysqlUser := os.Getenv("MYSQL_USER")
-	mysqlUserPwd := os.Getenv("MYSQL_PASSWORD")
+	mysqlPwd := os.Getenv("MYSQL_PWD")
+	mysqlHost := os.Getenv("MYSQL_HOST")
 	mysqlDatabase := os.Getenv("MYSQL_DATABASE")
-	dsn := fmt.Sprintf("%s:%s@(localhost:3306)/%s", mysqlUser, mysqlUserPwd, mysqlDatabase)
-	db, err := sql.Open("mysql", dsn)
+
+	connStr := fmt.Sprintf("%s:%s@%s/%s", mysqlUser, mysqlPwd, mysqlHost, mysqlDatabase)
+	db, err := sql.Open("mysql", connStr)
+
 	if err != nil {
 		return nil, fmt.Errorf("sql.Openで接続の確立に失敗: %w", err)
 	}
