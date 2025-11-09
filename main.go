@@ -51,7 +51,7 @@ func UserDBInit() (*sql.DB, error) {
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("環境変数のロードに失敗: %w", err)
+		log.Println("INFO: 環境ファイル(.env)のロードに失敗。Cloud Run環境を想定して続行:", err)
 	}
 	// 💡 1. 環境変数 PORT を取得し、デフォルト値を設定
 	port := os.Getenv("PORT")
