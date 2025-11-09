@@ -20,9 +20,9 @@ import (
 // UserDBInit .envの読み取り
 func UserDBInit() (*sql.DB, error) {
 
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("環境ファイル(.env)のロードに失敗: %w", err)
-	}
+	//if err := godotenv.Load(); err != nil {
+	//	return nil, fmt.Errorf("環境ファイル(.env)のロードに失敗: %w", err)
+	//}
 	// mysqlUser := os.Getenv("MYSQL_USER")
 	// mysqlUserPwd := os.Getenv("MYSQL_PASSWORD")
 	// mysqlDatabase := os.Getenv("MYSQL_DATABASE")
@@ -50,6 +50,9 @@ func UserDBInit() (*sql.DB, error) {
 }
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("環境変数のロードに失敗: %w", err)
+	}
 	// 💡 1. 環境変数 PORT を取得し、デフォルト値を設定
 	port := os.Getenv("PORT")
 	if port == "" {
