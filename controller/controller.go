@@ -2,6 +2,7 @@ package controller
 
 // SearchUserController handles user search requests
 import (
+	"db/middleware"
 	"db/model"
 	"db/usecase"
 	"encoding/json"
@@ -22,9 +23,17 @@ func NewUserController(r usecase.UserRegister, s usecase.UserSearch) *UserContro
 	}
 }
 
-func (c *UserController) handleRegister(w http.ResponseWriter, r *http.Request) {
-
+func (c *UserController) HandleProfileRegister(w http.ResponseWriter, r *http.Request) {
+	// Firebase認証ミドルウェアで設定されたユーザーIDをコンテキストから取得
 	ctx := r.Context()
+	uid, err := middleware.GetUserIDFromContext(ctx)
+	if err != nil {
+		log.Printf("fail: get user ID from context, %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// リクエストボディからUserCreateRequestをデコード
 	var req *model.UserCreateRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -33,7 +42,7 @@ func (c *UserController) handleRegister(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	newID, err := c.register.Register(ctx, req)
+	err = c.register.Register(ctx, uid, req)
 	if err != nil {
 		if errors.Is(err, usecase.ErrInvalidRequest) {
 			log.Printf("fail: invalid request by client, %v\n", err)
@@ -45,11 +54,11 @@ func (c *UserController) handleRegister(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	log.Printf("successfully created user with transaction: id=%s", newID)
+	log.Printf("successfully created user with transaction: id=%s", uid)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	res := map[string]string{"id": newID}
+	res := map[string]string{"id": uid}
 	if err := json.NewEncoder(w).Encode(res); err != nil {
 		log.Printf("fail: json.NewEncoder, %v\n", err)
 		return
@@ -81,8 +90,8 @@ func (c *UserController) HandleUser(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		c.handleSearch(w, r)
 
-	case http.MethodPost:
-		c.handleRegister(w, r)
+	// case http.MethodPost:
+	// 	c.HandleProfileRegister(w, r)
 
 	default:
 		log.Printf("MethodNotAllowed:%v\n", r.Method)

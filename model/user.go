@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // MaxNameLen definition of user rule
 const MaxNameLen = 50
 const MinAge = 20
@@ -7,9 +9,12 @@ const MaxAge = 80
 
 // User struct and method used for operation related to user
 type User struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
-	Age  int    `json:"age"`
+	Id        string    `json:"id"`
+	Name      string    `json:"name"`
+	Age       int       `json:"age"`
+	Email     string    `json:"email,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // UserCreateRequest struct and method used to create user

@@ -2,14 +2,10 @@ package usecase
 
 import (
 	"context"
-	"crypto/rand"
 	"db/dao"
 	"db/model"
 	"errors"
 	"fmt"
-	"time"
-
-	"github.com/oklog/ulid"
 )
 
 // UserRegisterUsecase handles user registration business logic
@@ -17,34 +13,33 @@ import (
 var ErrInvalidRequest = errors.New("invalid request")
 
 type UserRegister interface {
-	Register(ctx context.Context, req *model.UserCreateRequest) (string, error)
+	Register(ctx context.Context, uid string, req *model.UserCreateRequest) error
 }
 
 type userRegister struct {
 	userDAO dao.UserDAO
 }
 
+//daoからUserDAOを受けとり、userRegister構造体を生成して返す(この構造体にRegisterメソッドがある/
 func NewUserRegister(us dao.UserDAO) UserRegister {
 	return &userRegister{userDAO: us}
 }
 
-func (us *userRegister) Register(ctx context.Context, req *model.UserCreateRequest) (string, error) {
+func (us *userRegister) Register(ctx context.Context, uid string, req *model.UserCreateRequest) error {
 
 	if !req.IsValid() {
-		return "", ErrInvalidRequest
+		return ErrInvalidRequest
 	}
 
-	entropy := ulid.Monotonic(rand.Reader, 0)
-	newID := ulid.MustNew(ulid.Timestamp(time.Now()), entropy)
 	newUser := model.User{
-		Id:   newID.String(),
+		Id:   uid,
 		Name: req.Name,
 		Age:  req.Age,
 	}
 	err := us.userDAO.DBInsert(ctx, &newUser)
 	if err != nil {
-		return "", fmt.Errorf("fail:us.userDAO.DBInsert:%w", err)
+		return fmt.Errorf("fail:us.userDAO.DBInsert:%w", err)
 	}
 
-	return newUser.Id, nil
+	return nil
 }

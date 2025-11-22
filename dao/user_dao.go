@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 )
 
 type UserDAO interface {
@@ -65,8 +66,10 @@ func (dao *userDao) DBInsert(ctx context.Context, user *model.User) error {
 		}
 	}()
 
-	query := "INSERT INTO users (id, name, age) VALUES (?, ?, ?)"
-	_, err = tx.ExecContext(ctx, query, user.Id, user.Name, user.Age)
+	now := time.Now()
+	query := "INSERT INTO users (id, name, age, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+
+	_, err = tx.ExecContext(ctx, query, user.Id, user.Name, user.Age, user.Email, now, now)
 	if err != nil {
 		return fmt.Errorf("fail:db.Exec: %w", err)
 	}

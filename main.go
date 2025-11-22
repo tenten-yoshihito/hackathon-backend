@@ -12,22 +12,18 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"context"
+	
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/auth"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/joho/godotenv"
 )
 
-// UserDBInit .envの読み取り
+// UserDBInit,環境変数からDB接続情報を取得し、DB接続を初期化する 
 func UserDBInit() (*sql.DB, error) {
 
-	//if err := godotenv.Load(); err != nil {
-	//	return nil, fmt.Errorf("環境ファイル(.env)のロードに失敗: %w", err)
-	//}
-	// mysqlUser := os.Getenv("MYSQL_USER")
-	// mysqlUserPwd := os.Getenv("MYSQL_PASSWORD")
-	// mysqlDatabase := os.Getenv("MYSQL_DATABASE")
-	// dsn := fmt.Sprintf("%s:%s@(localhost:3306)/%s", mysqlUser, mysqlUserPwd, mysqlDatabase)
-	// db, err := sql.Open("mysql", dsn)
 	// DB接続のための準備
 	mysqlUser := os.Getenv("MYSQL_USER")
 	mysqlPwd := os.Getenv("MYSQL_PWD")
@@ -49,11 +45,24 @@ func UserDBInit() (*sql.DB, error) {
 	return db, nil
 }
 
+//Firebaseの初期化
+func FirebaseAdminInit(ctx context.Context) (*auth.Client, error) {
+    
+    app, err := firebase.NewApp(ctx, nil)
+    // 認証クライアントの取得
+    authClient, err := app.Auth(ctx)
+    if err != nil {
+        return nil, fmt.Errorf("error getting Auth client: %w", err)
+    }
+    log.Println("successfully initialized Firebase Admin SDK")
+    return authClient, nil
+}
+
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("INFO: 環境ファイル(.env)のロードに失敗。Cloud Run環境を想定して続行:", err)
 	}
-	// 💡 1. 環境変数 PORT を取得し、デフォルト値を設定
+	//  環境変数 PORT を取得し、デフォルト値を設定
 	port := os.Getenv("PORT")
 	if port == "" {
 		// 環境変数がない場合、Dockerfileや設定に合わせて8000をデフォルトとする
@@ -65,6 +74,11 @@ func main() {
 		log.Fatalf("DBの初期化に失敗: %v", err)
 	}
 	log.Println("successfully connected to database")
+	//--- Firebase Admin SDKの初期化 ---
+	authClient, err := FirebaseAdminInit(context.Background())
+	if err != nil {
+		log.Fatalf("Firebase Admin SDKの初期化に失敗: %v", err)
+	}
 	// --- 依存性の注入 (DI) ---
 	userDAO := dao.NewUserDao(db)
 	userRegister := usecase.NewUserRegister(userDAO)
@@ -74,6 +88,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/user", userController.HandleUser)
+	mux.Handle("/register", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(userController.HandleProfileRegister)))
 	wrappedHandler := middleware.CORSMiddleware(mux)
 
 	closeDBWithSysCall(db)
