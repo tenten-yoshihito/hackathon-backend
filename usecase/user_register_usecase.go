@@ -35,6 +35,8 @@ func (us *userRegister) Register(ctx context.Context, uid string, req *model.Use
 		Id:   uid,
 		Name: req.Name,
 		Age:  req.Age,
+		Email: req.Email,
+		IconURL: req.IconURL,
 	}
 	err := us.userDAO.DBInsert(ctx, &newUser)
 	if err != nil {
