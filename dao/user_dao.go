@@ -25,7 +25,7 @@ func NewUserDao(db *sql.DB) UserDAO {
 
 func (dao *userDao) List(ctx context.Context) ([]model.User, error) {
 
-	query := "SELECT id, name, age FROM users"
+	query := "SELECT id, name, icon_url FROM users"
 	rows, err := dao.DB.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("fail:dao.DB.Query:%w", err)
@@ -40,7 +40,7 @@ func (dao *userDao) List(ctx context.Context) ([]model.User, error) {
 	users := make([]model.User, 0)
 	for rows.Next() {
 		var u model.User
-		if err := rows.Scan(&u.Id, &u.Name, &u.Age); err != nil {
+		if err := rows.Scan(&u.Id, &u.Name, &u.IconURL); err != nil {
 			return nil, fmt.Errorf("fail:ows.Scan:%w", err)
 		}
 		users = append(users, u)
@@ -67,9 +67,11 @@ func (dao *userDao) DBInsert(ctx context.Context, user *model.User) error {
 	}()
 
 	now := time.Now()
-	query := "INSERT INTO users (id, name, age, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)"
+	query := `INSERT INTO users 
+              (id, name, age, email, bio, icon_url, created_at, updated_at) 
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
-	_, err = tx.ExecContext(ctx, query, user.Id, user.Name, user.Age, user.Email, now, now)
+	_, err = tx.ExecContext(ctx, query, user.Id, user.Name, user.Age, user.Email, user.Bio, user.IconURL, now, now)
 	if err != nil {
 		return fmt.Errorf("fail:db.Exec: %w", err)
 	}

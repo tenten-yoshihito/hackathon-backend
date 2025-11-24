@@ -11,15 +11,18 @@ type User struct {
 	Name      string    `json:"name"`
 	Age       int       `json:"age"`
 	Email     string    `json:"email,omitempty"`
+	Bio       string    `json:"bio,omitempty"`
+	IconURL   string    `json:"icon_url,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // UserCreateRequest struct and method used to create user
 type UserCreateRequest struct {
-	Name  string `json:"name"`
-	Age   int    `json:"age"`
-	Email string `json:"email"`
+	Name    string `json:"name"`
+	Age     int    `json:"age"`
+	Email   string `json:"email"`
+	IconURL string `json:"icon_url"`
 }
 
 // IsValid バリデーション
