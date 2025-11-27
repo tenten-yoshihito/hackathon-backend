@@ -7,6 +7,7 @@ require github.com/joho/godotenv v1.5.1
 require (
 	firebase.google.com/go/v4 v4.18.0
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/oklog/ulid v1.3.1
 )
 
 require (
