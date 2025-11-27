@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"db/controller"
 	"db/dao"
@@ -12,8 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"context"
-	
+
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
 
@@ -21,8 +21,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// UserDBInit,環境変数からDB接続情報を取得し、DB接続を初期化する 
-func UserDBInit() (*sql.DB, error) {
+// UserDBInit,環境変数からDB接続情報を取得し、DB接続を初期化する
+func DBInit() (*sql.DB, error) {
 
 	// DB接続のための準備
 	mysqlUser := os.Getenv("MYSQL_USER")
@@ -45,17 +45,20 @@ func UserDBInit() (*sql.DB, error) {
 	return db, nil
 }
 
-//Firebaseの初期化
+// Firebaseの初期化
 func FirebaseAdminInit(ctx context.Context) (*auth.Client, error) {
-    
-    app, err := firebase.NewApp(ctx, nil)
-    // 認証クライアントの取得
-    authClient, err := app.Auth(ctx)
-    if err != nil {
-        return nil, fmt.Errorf("error getting Auth client: %w", err)
-    }
-    log.Println("successfully initialized Firebase Admin SDK")
-    return authClient, nil
+
+	app, err := firebase.NewApp(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing firebase app: %w", err)
+	}
+	// 認証クライアントの取得
+	authClient, err := app.Auth(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error getting Auth client: %w", err)
+	}
+	log.Println("successfully initialized Firebase Admin SDK")
+	return authClient, nil
 }
 
 func main() {
@@ -69,7 +72,7 @@ func main() {
 		port = "8000"
 	}
 	//--- DBの接続---
-	db, err := UserDBInit()
+	db, err := DBInit()
 	if err != nil {
 		log.Fatalf("DBの初期化に失敗: %v", err)
 	}
@@ -84,11 +87,20 @@ func main() {
 	userRegister := usecase.NewUserRegister(userDAO)
 	userSearch := usecase.NewUserSearch(userDAO)
 	userController := controller.NewUserController(userRegister, userSearch)
+
+	itemDAO := dao.NewItemDao(db)
+	itemRegister := usecase.NewItemRegister(itemDAO)
+	itemController := controller.NewItemController(itemRegister)
 	//--- 実際の処理 ---
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/user", userController.HandleUser)
+	// User Endpoints
+	mux.HandleFunc("/user", userController.HandleSearchUser)
 	mux.Handle("/register", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(userController.HandleProfileRegister)))
+
+	// Item Endpoints
+	mux.Handle("/items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemRegister)))
+
 	wrappedHandler := middleware.CORSMiddleware(mux)
 
 	closeDBWithSysCall(db)

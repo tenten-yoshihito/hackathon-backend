@@ -20,7 +20,7 @@ type userRegister struct {
 	userDAO dao.UserDAO
 }
 
-//daoからUserDAOを受けとり、userRegister構造体を生成して返す(この構造体にRegisterメソッドがある/
+//daoからUserDAOを受けとり、userRegister構造体を生成して返す(この構造体にRegisterメソッドがある)
 func NewUserRegister(us dao.UserDAO) UserRegister {
 	return &userRegister{userDAO: us}
 }
