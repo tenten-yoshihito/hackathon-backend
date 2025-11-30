@@ -13,6 +13,7 @@ import (
 type ItemDAO interface {
 	ItemInsert(ctx context.Context, item *model.Item) error
 	GetItemList(ctx context.Context) ([]model.ItemSimple, error)
+	GetItem(ctx context.Context, itemID string) (*model.Item, error)
 }
 
 type itemDao struct {
@@ -104,4 +105,36 @@ func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 	}
 
 	return items, nil
+}
+
+// GetItem : 指定されたitemIDの商品を取得
+func (dao *itemDao) GetItem(ctx context.Context, itemID string) (*model.Item, error) {
+	// 商品本体を取得
+	queryItem := "SELECT id, user_id, name, price, description, created_at, updated_at FROM items WHERE id = ?"
+	row := dao.DB.QueryRowContext(ctx, queryItem, itemID)
+
+	var item model.Item
+	if err := row.Scan(&item.ItemId, &item.UserId, &item.Name, &item.Price, &item.Description, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		return nil, fmt.Errorf("fail: fetch item: %w", err)
+	}
+
+	// 画像一覧を取得
+	queryImages := "SELECT image_url FROM item_images WHERE item_id = ?"
+	rows, err := dao.DB.QueryContext(ctx, queryImages, itemID)
+	if err != nil {
+		return nil, fmt.Errorf("fail: fetch images: %w", err)
+	}
+	defer rows.Close()
+
+	var imageURLs []string
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		imageURLs = append(imageURLs, url)
+	}
+	item.ImageURLs = imageURLs
+
+	return &item, nil
 }
