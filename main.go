@@ -91,7 +91,8 @@ func main() {
 	itemDAO := dao.NewItemDao(db)
 	itemRegister := usecase.NewItemRegister(itemDAO)
 	itemList := usecase.NewItemList(itemDAO)
-	itemController := controller.NewItemController(itemRegister, itemList)
+	itemGet := usecase.NewItemGet(itemDAO)
+	itemController := controller.NewItemController(itemRegister, itemList, itemGet)
 	//--- 実際の処理 ---
 
 	mux := http.NewServeMux()
@@ -104,7 +105,10 @@ func main() {
 	mux.HandleFunc("GET /items", itemController.HandleItemList)
 	// 商品出品 (POST /items)
 	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemRegister)))
+	// 商品詳細 (GET /items/{itemID})
+	mux.HandleFunc("GET /items/", itemController.HandleItemDetail)
 
+	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
 
 	closeDBWithSysCall(db)

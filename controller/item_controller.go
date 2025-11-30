@@ -13,10 +13,11 @@ import (
 type ItemController struct {
 	register usecase.ItemRegister
 	list     usecase.ItemList
+	get      usecase.ItemGet
 }
 
-func NewItemController(r usecase.ItemRegister, l usecase.ItemList) *ItemController {
-	return &ItemController{register: r, list: l}
+func NewItemController(r usecase.ItemRegister, l usecase.ItemList, g usecase.ItemGet) *ItemController {
+	return &ItemController{register: r, list: l, get: g}
 }
 
 func (c *ItemController) HandleItemRegister(w http.ResponseWriter, r *http.Request) {
@@ -81,4 +82,18 @@ func (c *ItemController) HandleItemList(w http.ResponseWriter, r *http.Request) 
 	}
 
 	respondJSON(w, http.StatusOK, map[string]interface{}{"items": items})
+}
+
+// HandleItemDetail : 商品詳細取得 (GET /items/{id})
+func (c *ItemController) HandleItemDetail(w http.ResponseWriter, r *http.Request) {
+	itemID := r.PathValue("id")
+
+	ctx := r.Context()
+	item, err := c.get.GetItem(ctx, itemID)
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to fetch item", err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, item)
 }
