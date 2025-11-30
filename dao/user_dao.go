@@ -19,10 +19,12 @@ type userDao struct {
 	DB *sql.DB
 }
 
+// NewUserDao : UserDAOの生成
 func NewUserDao(db *sql.DB) UserDAO {
 	return &userDao{DB: db}
 }
 
+// List : ユーザー一覧を取得する
 func (dao *userDao) List(ctx context.Context) ([]model.User, error) {
 
 	query := "SELECT id, name, icon_url FROM users"

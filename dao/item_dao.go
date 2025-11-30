@@ -12,16 +12,19 @@ import (
 
 type ItemDAO interface {
 	ItemInsert(ctx context.Context, item *model.Item) error
+	GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 }
 
 type itemDao struct {
 	DB *sql.DB
 }
 
+// NewItemDao : ItemDAOの生成
 func NewItemDao(db *sql.DB) ItemDAO {
 	return &itemDao{DB: db}
 }
 
+// ItemInsert : 指定されたitemをinsertする
 func (dao *itemDao) ItemInsert(ctx context.Context, item *model.Item) error {
 
 	tx, err := dao.DB.BeginTx(ctx, nil)
@@ -40,7 +43,7 @@ func (dao *itemDao) ItemInsert(ctx context.Context, item *model.Item) error {
 
 	_, err = tx.ExecContext(ctx, queryItem,
 		item.ItemId,
-		item.UserId, 
+		item.UserId,
 		item.Name,
 		item.Description,
 		item.Price,
@@ -65,4 +68,40 @@ func (dao *itemDao) ItemInsert(ctx context.Context, item *model.Item) error {
 		return fmt.Errorf("fail:tx.Commit(): %w", err)
 	}
 	return nil
+}
+
+// GetItemList : 商品一覧を取得
+func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error) {
+
+	query := `
+		SELECT 
+			i.id, 
+			i.name, 
+			i.price, 
+			COALESCE((SELECT image_url FROM item_images WHERE item_id = i.id LIMIT 1), '') as image_url
+		FROM items i
+		ORDER BY i.created_at DESC`
+
+	rows, err := dao.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("fail:dao.DB.Query:%w", err)
+	}
+	defer rows.Close()
+
+	// スライス（配列）の初期化
+	items := make([]model.ItemSimple, 0)
+
+	for rows.Next() {
+		var i model.ItemSimple
+		if err := rows.Scan(&i.ItemId, &i.Name, &i.Price, &i.ImageURL); err != nil {
+			return nil, fmt.Errorf("fail:rows.Scan:%w", err)
+		}
+		items = append(items, i)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("fail:rows.Err:%w", err)
+	}
+
+	return items, nil
 }
