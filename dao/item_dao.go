@@ -110,7 +110,10 @@ func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 // GetItem : 指定されたitemIDの商品を取得
 func (dao *itemDao) GetItem(ctx context.Context, itemID string) (*model.Item, error) {
 	// 商品本体を取得
-	queryItem := "SELECT id, user_id, name, price, description, created_at, updated_at FROM items WHERE id = ?"
+
+	// log.Printf("DEBUG: Searching item with ID: [%s]", itemID)
+
+	queryItem := "SELECT id, user_id, name, price, COALESCE(description, '') as description, created_at, updated_at FROM items WHERE id = ?"
 	row := dao.DB.QueryRowContext(ctx, queryItem, itemID)
 
 	var item model.Item

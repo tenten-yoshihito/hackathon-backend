@@ -86,6 +86,8 @@ func (c *ItemController) HandleItemList(w http.ResponseWriter, r *http.Request) 
 
 // HandleItemDetail : 商品詳細取得 (GET /items/{id})
 func (c *ItemController) HandleItemDetail(w http.ResponseWriter, r *http.Request) {
+
+
 	itemID := r.PathValue("id")
 
 	ctx := r.Context()
