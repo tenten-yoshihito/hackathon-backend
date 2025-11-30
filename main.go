@@ -90,7 +90,8 @@ func main() {
 
 	itemDAO := dao.NewItemDao(db)
 	itemRegister := usecase.NewItemRegister(itemDAO)
-	itemController := controller.NewItemController(itemRegister)
+	itemList := usecase.NewItemList(itemDAO)
+	itemController := controller.NewItemController(itemRegister, itemList)
 	//--- 実際の処理 ---
 
 	mux := http.NewServeMux()
@@ -99,7 +100,10 @@ func main() {
 	mux.Handle("/register", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(userController.HandleProfileRegister)))
 
 	// Item Endpoints
-	mux.Handle("/items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemRegister)))
+	// 商品一覧 (GET /items)
+	mux.HandleFunc("GET /items", itemController.HandleItemList)
+	// 商品出品 (POST /items)
+	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemRegister)))
 
 	wrappedHandler := middleware.CORSMiddleware(mux)
 
