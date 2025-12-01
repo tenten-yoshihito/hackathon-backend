@@ -30,7 +30,7 @@ func DBInit() (*sql.DB, error) {
 	mysqlHost := os.Getenv("MYSQL_HOST")
 	mysqlDatabase := os.Getenv("MYSQL_DATABASE")
 
-	connStr := fmt.Sprintf("%s:%s@%s/%s", mysqlUser, mysqlPwd, mysqlHost, mysqlDatabase)
+	connStr := fmt.Sprintf("%s:%s@%s/%s?parseTime=true&loc=Local", mysqlUser, mysqlPwd, mysqlHost, mysqlDatabase)
 	db, err := sql.Open("mysql", connStr)
 
 	if err != nil {
@@ -105,8 +105,8 @@ func main() {
 	mux.HandleFunc("GET /items", itemController.HandleItemList)
 	// 商品出品 (POST /items)
 	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemRegister)))
-	// 商品詳細 (GET /items/{itemID})
-	mux.HandleFunc("GET /items/", itemController.HandleItemDetail)
+	// 商品詳細 (GET /items/{id})
+	mux.HandleFunc("GET /items/{id}", itemController.HandleItemDetail)
 
 	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
