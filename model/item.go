@@ -2,6 +2,12 @@ package model
 
 import "time"
 
+// Status constants
+const (
+	StatusOnSale = "ON_SALE"
+	StatusSold   = "SOLD"
+)
+
 type Item struct {
 	ItemId      string    `json:"id"`
 	UserId      string    `json:"user_id"`
@@ -9,6 +15,7 @@ type Item struct {
 	Price       int       `json:"price"`
 	Description string    `json:"description,omitempty"`
 	ImageURLs   []string  `json:"image_urls"`
+	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -25,6 +32,7 @@ type ItemSimple struct {
 	Name     string `json:"name"`
 	Price    int    `json:"price"`
 	ImageURL string `json:"image_url"` // 配列ではなく、サムネイル1枚の文字列
+	Status   string `json:"status"`
 }
 
 // IsValid バリデーション

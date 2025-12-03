@@ -14,19 +14,14 @@ type ItemController struct {
 	register usecase.ItemRegister
 	list     usecase.ItemList
 	get      usecase.ItemGet
+	purchase usecase.ItemPurchase
 }
 
-func NewItemController(r usecase.ItemRegister, l usecase.ItemList, g usecase.ItemGet) *ItemController {
-	return &ItemController{register: r, list: l, get: g}
+func NewItemController(r usecase.ItemRegister, l usecase.ItemList, g usecase.ItemGet, p usecase.ItemPurchase) *ItemController {
+	return &ItemController{register: r, list: l, get: g, purchase: p}
 }
 
 func (c *ItemController) HandleItemRegister(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != http.MethodPost {
-		respondError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
-		return
-	}
-
 	ctx := r.Context()
 	uid, err := middleware.GetUserIDFromContext(ctx)
 	if err != nil {
@@ -68,12 +63,6 @@ func (c *ItemController) HandleItemRegister(w http.ResponseWriter, r *http.Reque
 }
 
 func (c *ItemController) HandleItemList(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != http.MethodGet {
-		respondError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
-		return
-	}
-
 	ctx := r.Context()
 	items, err := c.list.GetItems(ctx)
 	if err != nil {
@@ -87,7 +76,6 @@ func (c *ItemController) HandleItemList(w http.ResponseWriter, r *http.Request) 
 // HandleItemDetail : 商品詳細取得 (GET /items/{id})
 func (c *ItemController) HandleItemDetail(w http.ResponseWriter, r *http.Request) {
 
-
 	itemID := r.PathValue("id")
 
 	ctx := r.Context()
@@ -98,4 +86,25 @@ func (c *ItemController) HandleItemDetail(w http.ResponseWriter, r *http.Request
 	}
 
 	respondJSON(w, http.StatusOK, item)
+}
+
+// HandleItemPurchase : 商品購入 (POST /items/{id}/purchase)
+func (c *ItemController) HandleItemPurchase(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	uid, err := middleware.GetUserIDFromContext(ctx)
+	if err != nil {
+		log.Printf("fail: GetUserIDFromContext, %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	itemID := r.PathValue("id")
+
+	if err := c.purchase.PurchaseItem(ctx, itemID, uid); err != nil {
+		log.Printf("fail: purchase item, %v\n", err)
+		respondError(w, http.StatusBadRequest, err.Error(), err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "purchase successful"})
 }

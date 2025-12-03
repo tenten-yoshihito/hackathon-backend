@@ -21,12 +21,6 @@ func NewUserController(r usecase.UserRegister, s usecase.UserSearch) *UserContro
 
 // ユーザー登録 (POST /register)
 func (c *UserController) HandleProfileRegister(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != http.MethodPost {
-		respondError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
-		return
-	}
-
 	ctx := r.Context()
 
 	uid, err := middleware.GetUserIDFromContext(ctx)
@@ -57,12 +51,6 @@ func (c *UserController) HandleProfileRegister(w http.ResponseWriter, r *http.Re
 
 // ユーザー検索 (GET /user)
 func (c *UserController) HandleSearchUser(w http.ResponseWriter, r *http.Request) {
-
-	if r.Method != http.MethodGet {
-		respondError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
-		return
-	}
-
 	ctx := r.Context()
 	users, err := c.search.Search(ctx)
 	if err != nil {

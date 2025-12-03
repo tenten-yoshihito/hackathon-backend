@@ -92,13 +92,14 @@ func main() {
 	itemRegister := usecase.NewItemRegister(itemDAO)
 	itemList := usecase.NewItemList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
-	itemController := controller.NewItemController(itemRegister, itemList, itemGet)
+	itemPurchase := usecase.NewItemPurchase(itemDAO)
+	itemController := controller.NewItemController(itemRegister, itemList, itemGet, itemPurchase)
 	//--- 実際の処理 ---
 
 	mux := http.NewServeMux()
 	// User Endpoints
-	mux.HandleFunc("/user", userController.HandleSearchUser)
-	mux.Handle("/register", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(userController.HandleProfileRegister)))
+	mux.HandleFunc("GET /user", userController.HandleSearchUser)
+	mux.Handle("POST /register", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(userController.HandleProfileRegister)))
 
 	// Item Endpoints
 	// 商品一覧 (GET /items)
@@ -107,6 +108,8 @@ func main() {
 	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemRegister)))
 	// 商品詳細 (GET /items/{id})
 	mux.HandleFunc("GET /items/{id}", itemController.HandleItemDetail)
+	// 商品購入 (POST /items/{id}/purchase)
+	mux.Handle("POST /items/{id}/purchase", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemPurchase)))
 
 	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
