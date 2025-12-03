@@ -14,6 +14,7 @@ type ItemDAO interface {
 	ItemInsert(ctx context.Context, item *model.Item) error
 	GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
+	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
 }
 
 type itemDao struct {
@@ -79,7 +80,8 @@ func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 			i.id, 
 			i.name, 
 			i.price, 
-			COALESCE((SELECT image_url FROM item_images WHERE item_id = i.id LIMIT 1), '') as image_url
+			COALESCE((SELECT image_url FROM item_images WHERE item_id = i.id LIMIT 1), '') as image_url,
+			i.status
 		FROM items i
 		ORDER BY i.created_at DESC`
 
@@ -94,7 +96,7 @@ func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 
 	for rows.Next() {
 		var i model.ItemSimple
-		if err := rows.Scan(&i.ItemId, &i.Name, &i.Price, &i.ImageURL); err != nil {
+		if err := rows.Scan(&i.ItemId, &i.Name, &i.Price, &i.ImageURL, &i.Status); err != nil {
 			return nil, fmt.Errorf("fail:rows.Scan:%w", err)
 		}
 		items = append(items, i)
@@ -113,11 +115,11 @@ func (dao *itemDao) GetItem(ctx context.Context, itemID string) (*model.Item, er
 
 	// log.Printf("DEBUG: Searching item with ID: [%s]", itemID)
 
-	queryItem := "SELECT id, user_id, name, price, COALESCE(description, '') as description, created_at, updated_at FROM items WHERE id = ?"
+	queryItem := "SELECT id, user_id, name, price, COALESCE(description, '') as description, status, created_at, updated_at FROM items WHERE id = ?"
 	row := dao.DB.QueryRowContext(ctx, queryItem, itemID)
 
 	var item model.Item
-	if err := row.Scan(&item.ItemId, &item.UserId, &item.Name, &item.Price, &item.Description, &item.CreatedAt, &item.UpdatedAt); err != nil {
+	if err := row.Scan(&item.ItemId, &item.UserId, &item.Name, &item.Price, &item.Description, &item.Status, &item.CreatedAt, &item.UpdatedAt); err != nil {
 		return nil, fmt.Errorf("fail: fetch item: %w", err)
 	}
 
@@ -140,4 +142,40 @@ func (dao *itemDao) GetItem(ctx context.Context, itemID string) (*model.Item, er
 	item.ImageURLs = imageURLs
 
 	return &item, nil
+}
+
+// PurchaseItem : 指定されたitemIDの商品を購入済みにする
+func (dao *itemDao) PurchaseItem(ctx context.Context, itemID string, buyerID string) error {
+	tx, err := dao.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("fail: txBegin(): %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("fail: tx.Rollback, %v\n", err)
+		}
+	}()
+
+	query := `UPDATE items SET status = ?, buyer_id = ?, purchased_at = ? WHERE id = ? AND status = ?`
+
+	now := time.Now()
+	result, err := tx.ExecContext(ctx, query, model.StatusSold, buyerID, now, itemID, model.StatusOnSale)
+	if err != nil {
+		return fmt.Errorf("fail: update item status: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("fail: get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("item not found or already sold")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("fail: tx.Commit(): %w", err)
+	}
+
+	return nil
 }
