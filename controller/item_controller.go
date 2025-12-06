@@ -11,14 +11,15 @@ import (
 )
 
 type ItemController struct {
-	register usecase.ItemRegister
-	list     usecase.ItemList
-	get      usecase.ItemGet
-	purchase usecase.ItemPurchase
+	register            usecase.ItemRegister
+	list                usecase.ItemList
+	get                 usecase.ItemGet
+	purchase            usecase.ItemPurchase
+	descriptionGenerate usecase.DescriptionGenerate
 }
 
-func NewItemController(r usecase.ItemRegister, l usecase.ItemList, g usecase.ItemGet, p usecase.ItemPurchase) *ItemController {
-	return &ItemController{register: r, list: l, get: g, purchase: p}
+func NewItemController(r usecase.ItemRegister, l usecase.ItemList, g usecase.ItemGet, p usecase.ItemPurchase, d usecase.DescriptionGenerate) *ItemController {
+	return &ItemController{register: r, list: l, get: g, purchase: p, descriptionGenerate: d}
 }
 
 func (c *ItemController) HandleItemRegister(w http.ResponseWriter, r *http.Request) {
@@ -107,4 +108,33 @@ func (c *ItemController) HandleItemPurchase(w http.ResponseWriter, r *http.Reque
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "purchase successful"})
+}
+
+// HandleGenerateDescription : AI商品説明生成 (POST /items/generate-description)
+func (c *ItemController) HandleGenerateDescription(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	var req struct {
+		ImageURL string `json:"image_url"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+
+	if req.ImageURL == "" {
+		respondError(w, http.StatusBadRequest, "image_url is required", nil)
+		return
+	}
+
+	description, err := c.descriptionGenerate.GenerateFromImageURL(ctx, req.ImageURL)
+	if err != nil {
+		log.Printf("fail: generate description, %v\n", err)
+		respondError(w, http.StatusInternalServerError, "Failed to generate description", err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"description": description})
 }
