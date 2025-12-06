@@ -6,6 +6,7 @@ import (
 	"db/controller"
 	"db/dao"
 	"db/middleware"
+	"db/service"
 	"db/usecase"
 	"fmt"
 	"log"
@@ -88,12 +89,20 @@ func main() {
 	userSearch := usecase.NewUserSearch(userDAO)
 	userController := controller.NewUserController(userRegister, userSearch)
 
+	// Gemini Service (Google AI Studio)
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey == "" {
+		log.Fatal("GEMINI_API_KEY is not set in .env file")
+	}
+	geminiService := service.NewGeminiService(apiKey)
+
 	itemDAO := dao.NewItemDao(db)
 	itemRegister := usecase.NewItemRegister(itemDAO)
 	itemList := usecase.NewItemList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
 	itemPurchase := usecase.NewItemPurchase(itemDAO)
-	itemController := controller.NewItemController(itemRegister, itemList, itemGet, itemPurchase)
+	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
+	itemController := controller.NewItemController(itemRegister, itemList, itemGet, itemPurchase, descriptionGenerate)
 	//--- 実際の処理 ---
 
 	mux := http.NewServeMux()
@@ -110,6 +119,8 @@ func main() {
 	mux.HandleFunc("GET /items/{id}", itemController.HandleItemDetail)
 	// 商品購入 (POST /items/{id}/purchase)
 	mux.Handle("POST /items/{id}/purchase", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemPurchase)))
+	// AI商品説明生成 (POST /items/generate-description)
+	mux.Handle("POST /items/generate-description", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleGenerateDescription)))
 
 	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
