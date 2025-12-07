@@ -13,13 +13,32 @@ import (
 type ItemController struct {
 	register            usecase.ItemRegister
 	list                usecase.ItemList
+	myItemsList         usecase.MyItemsList
 	get                 usecase.ItemGet
 	purchase            usecase.ItemPurchase
 	descriptionGenerate usecase.DescriptionGenerate
 }
 
-func NewItemController(r usecase.ItemRegister, l usecase.ItemList, g usecase.ItemGet, p usecase.ItemPurchase, d usecase.DescriptionGenerate) *ItemController {
-	return &ItemController{register: r, list: l, get: g, purchase: p, descriptionGenerate: d}
+// ItemControllerConfig holds dependencies for ItemController
+type ItemControllerConfig struct {
+	Register            usecase.ItemRegister
+	List                usecase.ItemList
+	MyItemsList         usecase.MyItemsList
+	Get                 usecase.ItemGet
+	Purchase            usecase.ItemPurchase
+	DescriptionGenerate usecase.DescriptionGenerate
+}
+
+// NewItemController creates a new ItemController with the given configuration
+func NewItemController(config ItemControllerConfig) *ItemController {
+	return &ItemController{
+		register:            config.Register,
+		list:                config.List,
+		myItemsList:         config.MyItemsList,
+		get:                 config.Get,
+		purchase:            config.Purchase,
+		descriptionGenerate: config.DescriptionGenerate,
+	}
 }
 
 func (c *ItemController) HandleItemRegister(w http.ResponseWriter, r *http.Request) {
@@ -87,6 +106,28 @@ func (c *ItemController) HandleItemDetail(w http.ResponseWriter, r *http.Request
 	}
 
 	respondJSON(w, http.StatusOK, item)
+}
+
+// HandleMyItems retrieves the list of items listed by the authenticated user (GET /items/my)
+func (c *ItemController) HandleMyItems(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user ID from context (set by Firebase auth middleware)
+	userID, err := middleware.GetUserIDFromContext(ctx)
+	if err != nil {
+		log.Printf("authentication failed: %v\n", err)
+		respondError(w, http.StatusUnauthorized, "User not authenticated", err)
+		return
+	}
+
+	items, err := c.myItemsList.Execute(ctx, userID)
+	if err != nil {
+		log.Printf("failed to get my items: %v\n", err)
+		respondError(w, http.StatusInternalServerError, "Failed to get my items", err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, items)
 }
 
 // HandleItemPurchase : 商品購入 (POST /items/{id}/purchase)

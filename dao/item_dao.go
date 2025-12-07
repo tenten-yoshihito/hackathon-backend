@@ -13,6 +13,7 @@ import (
 type ItemDAO interface {
 	ItemInsert(ctx context.Context, item *model.Item) error
 	GetItemList(ctx context.Context) ([]model.ItemSimple, error)
+	GetMyItems(ctx context.Context, sellerID string) ([]model.ItemSimple, error)
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
 }
@@ -97,13 +98,49 @@ func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 	for rows.Next() {
 		var i model.ItemSimple
 		if err := rows.Scan(&i.ItemId, &i.Name, &i.Price, &i.ImageURL, &i.Status); err != nil {
-			return nil, fmt.Errorf("fail:rows.Scan:%w", err)
+			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
 		items = append(items, i)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("fail:rows.Err:%w", err)
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return items, nil
+}
+
+// GetMyItems : 自分が出品した商品一覧を取得
+func (dao *itemDao) GetMyItems(ctx context.Context, sellerID string) ([]model.ItemSimple, error) {
+	query := `
+		SELECT 
+			i.id, 
+			i.name, 
+			i.price, 
+			COALESCE((SELECT image_url FROM item_images WHERE item_id = i.id LIMIT 1), '') as image_url,
+			i.status
+		FROM items i
+		WHERE i.user_id = ?
+		ORDER BY i.created_at DESC`
+
+	rows, err := dao.DB.QueryContext(ctx, query, sellerID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query my items: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]model.ItemSimple, 0)
+
+	for rows.Next() {
+		var i model.ItemSimple
+		if err := rows.Scan(&i.ItemId, &i.Name, &i.Price, &i.ImageURL, &i.Status); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		items = append(items, i)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
 	return items, nil
@@ -146,6 +183,7 @@ func (dao *itemDao) GetItem(ctx context.Context, itemID string) (*model.Item, er
 
 // PurchaseItem : 指定されたitemIDの商品を購入済みにする
 func (dao *itemDao) PurchaseItem(ctx context.Context, itemID string, buyerID string) error {
+
 	tx, err := dao.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("fail: txBegin(): %w", err)
