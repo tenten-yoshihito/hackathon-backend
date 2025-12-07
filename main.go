@@ -99,10 +99,19 @@ func main() {
 	itemDAO := dao.NewItemDao(db)
 	itemRegister := usecase.NewItemRegister(itemDAO)
 	itemList := usecase.NewItemList(itemDAO)
+	myItemsList := usecase.NewMyItemsList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
 	itemPurchase := usecase.NewItemPurchase(itemDAO)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
-	itemController := controller.NewItemController(itemRegister, itemList, itemGet, itemPurchase, descriptionGenerate)
+
+	itemController := controller.NewItemController(controller.ItemControllerConfig{
+		Register:            itemRegister,
+		List:                itemList,
+		MyItemsList:         myItemsList,
+		Get:                 itemGet,
+		Purchase:            itemPurchase,
+		DescriptionGenerate: descriptionGenerate,
+	})
 	//--- 実際の処理 ---
 
 	mux := http.NewServeMux()
@@ -113,6 +122,8 @@ func main() {
 	// Item Endpoints
 	// 商品一覧 (GET /items)
 	mux.HandleFunc("GET /items", itemController.HandleItemList)
+	// 自分が出品した商品一覧 (GET /items/my)
+	mux.Handle("GET /items/my", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleMyItems)))
 	// 商品出品 (POST /items)
 	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemRegister)))
 	// 商品詳細 (GET /items/{id})
