@@ -16,6 +16,7 @@ type ItemDAO interface {
 	GetMyItems(ctx context.Context, sellerID string) ([]model.ItemSimple, error)
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
+	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string) error
 }
 
 type itemDao struct {
@@ -213,6 +214,64 @@ func (dao *itemDao) PurchaseItem(ctx context.Context, itemID string, buyerID str
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("fail: tx.Commit(): %w", err)
+	}
+
+	return nil
+}
+
+// UpdateItem : 商品情報を更新
+func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string) error {
+	tx, err := dao.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("failed to rollback transaction: %v\n", err)
+		}
+	}()
+
+	// 商品の所有者確認と売却済みチェック
+	var ownerID string
+	var status string
+	checkQuery := `SELECT user_id, status FROM items WHERE id = ?`
+	err = tx.QueryRowContext(ctx, checkQuery, itemID).Scan(&ownerID, &status)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("item not found")
+		}
+		return fmt.Errorf("failed to check item owner: %w", err)
+	}
+
+	// 所有者チェック
+	if ownerID != userID {
+		return fmt.Errorf("not authorized to update this item")
+	}
+
+	// 売却済みチェック
+	if status == model.StatusSold {
+		return fmt.Errorf("cannot update sold item")
+	}
+
+	// 商品情報を更新
+	now := time.Now()
+	updateQuery := `UPDATE items SET name = ?, price = ?, description = ?, updated_at = ? WHERE id = ?`
+	result, err := tx.ExecContext(ctx, updateQuery, name, price, description, now, itemID)
+	if err != nil {
+		return fmt.Errorf("failed to update item: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("item not found")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

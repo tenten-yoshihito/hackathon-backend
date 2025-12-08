@@ -102,6 +102,7 @@ func main() {
 	myItemsList := usecase.NewMyItemsList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
 	itemPurchase := usecase.NewItemPurchase(itemDAO)
+	itemUpdate := usecase.NewItemUpdate(itemDAO)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
 
 	itemController := controller.NewItemController(controller.ItemControllerConfig{
@@ -110,6 +111,7 @@ func main() {
 		MyItemsList:         myItemsList,
 		Get:                 itemGet,
 		Purchase:            itemPurchase,
+		Update:              itemUpdate,
 		DescriptionGenerate: descriptionGenerate,
 	})
 	//--- 実際の処理 ---
@@ -130,6 +132,8 @@ func main() {
 	mux.HandleFunc("GET /items/{id}", itemController.HandleItemDetail)
 	// 商品購入 (POST /items/{id}/purchase)
 	mux.Handle("POST /items/{id}/purchase", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemPurchase)))
+	// 商品更新 (PUT /items/{id})
+	mux.Handle("PUT /items/{id}", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemUpdate)))
 	// AI商品説明生成 (POST /items/generate-description)
 	mux.Handle("POST /items/generate-description", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleGenerateDescription)))
 
