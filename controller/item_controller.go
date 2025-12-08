@@ -16,6 +16,7 @@ type ItemController struct {
 	myItemsList         usecase.MyItemsList
 	get                 usecase.ItemGet
 	purchase            usecase.ItemPurchase
+	update              usecase.ItemUpdate
 	descriptionGenerate usecase.DescriptionGenerate
 }
 
@@ -26,6 +27,7 @@ type ItemControllerConfig struct {
 	MyItemsList         usecase.MyItemsList
 	Get                 usecase.ItemGet
 	Purchase            usecase.ItemPurchase
+	Update              usecase.ItemUpdate
 	DescriptionGenerate usecase.DescriptionGenerate
 }
 
@@ -37,6 +39,7 @@ func NewItemController(config ItemControllerConfig) *ItemController {
 		myItemsList:         config.MyItemsList,
 		get:                 config.Get,
 		purchase:            config.Purchase,
+		update:              config.Update,
 		descriptionGenerate: config.DescriptionGenerate,
 	}
 }
@@ -178,4 +181,53 @@ func (c *ItemController) HandleGenerateDescription(w http.ResponseWriter, r *htt
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{"description": description})
+}
+
+// HandleItemUpdate handles PUT /items/:id
+func (c *ItemController) HandleItemUpdate(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user ID from context
+	userID, err := middleware.GetUserIDFromContext(ctx)
+	if err != nil {
+		log.Printf("failed to get user ID from context: %v\n", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	// Get item ID from URL parameter
+	itemID := r.PathValue("id")
+	if itemID == "" {
+		respondError(w, http.StatusBadRequest, "item ID is required", nil)
+		return
+	}
+
+	// Parse request body
+	var req model.ItemUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
+		return
+	}
+
+	// Set ItemID and UserID from context and URL
+	req.ItemID = itemID
+	req.UserID = userID
+
+	// Execute update (validation is done in usecase)
+	err = c.update.Execute(ctx, &req)
+	if err != nil {
+		log.Printf("failed to update item: %v\n", err)
+		if errors.Is(err, errors.New("not authorized to update this item")) {
+			respondError(w, http.StatusForbidden, "Not authorized to update this item", err)
+			return
+		}
+		if errors.Is(err, errors.New("cannot update sold item")) {
+			respondError(w, http.StatusBadRequest, "Cannot update sold item", err)
+			return
+		}
+		respondError(w, http.StatusInternalServerError, "Failed to update item", err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
