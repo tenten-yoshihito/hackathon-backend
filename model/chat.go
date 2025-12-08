@@ -20,6 +20,15 @@ type Message struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+// チャットルーム一覧表示用
+type ChatRoomInfo struct {
+	RoomID        string    `json:"room_id"`
+	BuyerID       string    `json:"buyer_id"`
+	BuyerName     string    `json:"buyer_name"`
+	BuyerImageURL string    `json:"buyer_image_url"` // 👈 これを追加
+	CreatedAt     time.Time `json:"created_at"`
+}
+
 // リクエスト用
 type MessageSendRequest struct {
 	Content string `json:"content"`

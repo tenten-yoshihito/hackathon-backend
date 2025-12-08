@@ -45,6 +45,15 @@ func (c *ChatController) HandleGetOrCreateRoom(w http.ResponseWriter, r *http.Re
 	respondJSON(w, http.StatusOK, room)
 }
 
+// HandleGetChatRoomList : チャットルーム一覧を取得 (GET /items/{item_id}/chat_rooms)
+func (c *ChatController) HandleGetChatRoomList(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	itemID := r.PathValue("item_id")
+	rooms, err := c.chatUsecase.GetChatRoomList(ctx, itemID)
+	if err != nil { respondError(w, http.StatusInternalServerError, "Failed to get chat list", err); return }
+	respondJSON(w, http.StatusOK, map[string]interface{}{"rooms": rooms})
+}
+
 // HandleGetMessages : メッセージ一覧を取得 (GET /chats/{room_id}/messages)
 func (c *ChatController) HandleGetMessages(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

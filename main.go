@@ -143,13 +143,10 @@ func main() {
 	mux.Handle("POST /items/generate-description", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleGenerateDescription)))
 
 	// Chat Endpoints
-	// チャットルーム作成・取得 (商品詳細画面の「コメント」ボタンから呼ぶ)
-    mux.Handle("POST /items/{item_id}/chat", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetOrCreateRoom)))
-	// メッセージ送信
+	mux.Handle("POST /items/{item_id}/chat", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetOrCreateRoom)))
+    mux.Handle("GET /items/{item_id}/chat_rooms", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetChatRoomList)))
+    mux.Handle("GET /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetMessages)))
     mux.Handle("POST /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleSendMessage)))
-	// メッセージ一覧取得
-	mux.Handle("GET /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetMessages)))
-	
 	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
 

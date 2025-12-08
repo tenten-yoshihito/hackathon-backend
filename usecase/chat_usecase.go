@@ -14,8 +14,8 @@ import (
 type ChatUsecase interface {
 	// ルーム関連
 	GetOrCreateChatRoom(ctx context.Context, itemID, buyerID, sellerID string) (*model.ChatRoom, error)
-	GetChatRoomByID(ctx context.Context, roomID string) (*model.ChatRoom, error)
-	
+	GetChatRoomList(ctx context.Context, itemID string) ([]model.ChatRoomInfo, error)
+
 	// メッセージ関連
 	SendMessage(ctx context.Context, roomID, senderID, content string) error
 	GetMessages(ctx context.Context, roomID string) ([]model.Message, error)
@@ -60,9 +60,9 @@ func (u *chatUsecase) GetOrCreateChatRoom(ctx context.Context, itemID, buyerID, 
 	return newRoom, nil
 }
 
-// GetChatRoomByID : ルームIDから情報を取得
-func (u *chatUsecase) GetChatRoomByID(ctx context.Context, roomID string) (*model.ChatRoom, error) {
-	return u.chatDAO.GetChatRoomByID(ctx, roomID)
+// GetChatRoomList : 商品IDからチャットルーム一覧を取得
+func (u *chatUsecase) GetChatRoomList(ctx context.Context, itemID string) ([]model.ChatRoomInfo, error) {
+	return u.chatDAO.GetChatRoomsByItemID(ctx, itemID)
 }
 
 // SendMessage : メッセージを送信
