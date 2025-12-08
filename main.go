@@ -72,6 +72,14 @@ func main() {
 		// 環境変数がない場合、Dockerfileや設定に合わせて8000をデフォルトとする
 		port = "8000"
 	}
+
+	// Gemini Service (Google AI Studio)
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey == "" {
+		log.Fatal("GEMINI_API_KEY is not set in .env file")
+	}
+	geminiService := service.NewGeminiService(apiKey)
+
 	//--- DBの接続---
 	db, err := DBInit()
 	if err != nil {
@@ -84,18 +92,12 @@ func main() {
 		log.Fatalf("Firebase Admin SDKの初期化に失敗: %v", err)
 	}
 	// --- 依存性の注入 (DI) ---
+	// --- user ---
 	userDAO := dao.NewUserDao(db)
 	userRegister := usecase.NewUserRegister(userDAO)
 	userSearch := usecase.NewUserSearch(userDAO)
 	userController := controller.NewUserController(userRegister, userSearch)
-
-	// Gemini Service (Google AI Studio)
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		log.Fatal("GEMINI_API_KEY is not set in .env file")
-	}
-	geminiService := service.NewGeminiService(apiKey)
-
+	// --- item ---
 	itemDAO := dao.NewItemDao(db)
 	itemRegister := usecase.NewItemRegister(itemDAO)
 	itemList := usecase.NewItemList(itemDAO)
@@ -104,7 +106,6 @@ func main() {
 	itemPurchase := usecase.NewItemPurchase(itemDAO)
 	itemUpdate := usecase.NewItemUpdate(itemDAO)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
-
 	itemController := controller.NewItemController(controller.ItemControllerConfig{
 		Register:            itemRegister,
 		List:                itemList,
@@ -114,6 +115,10 @@ func main() {
 		Update:              itemUpdate,
 		DescriptionGenerate: descriptionGenerate,
 	})
+	// --- chat ---
+	chatDAO := dao.NewChatDao(db)
+	chatUsecase := usecase.NewChatUsecase(chatDAO)
+	chatController := controller.NewChatController(chatUsecase)
 	//--- 実際の処理 ---
 
 	mux := http.NewServeMux()
@@ -137,6 +142,14 @@ func main() {
 	// AI商品説明生成 (POST /items/generate-description)
 	mux.Handle("POST /items/generate-description", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleGenerateDescription)))
 
+	// Chat Endpoints
+	// チャットルーム作成・取得 (商品詳細画面の「コメント」ボタンから呼ぶ)
+    mux.Handle("POST /items/{item_id}/chat", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetOrCreateRoom)))
+	// メッセージ送信
+    mux.Handle("POST /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleSendMessage)))
+	// メッセージ一覧取得
+	mux.Handle("GET /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetMessages)))
+	
 	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
 
