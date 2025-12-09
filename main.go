@@ -106,15 +106,12 @@ func main() {
 	itemPurchase := usecase.NewItemPurchase(itemDAO)
 	itemUpdate := usecase.NewItemUpdate(itemDAO)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
-	itemController := controller.NewItemController(controller.ItemControllerConfig{
-		Register:            itemRegister,
-		List:                itemList,
-		MyItemsList:         myItemsList,
-		Get:                 itemGet,
-		Purchase:            itemPurchase,
-		Update:              itemUpdate,
-		DescriptionGenerate: descriptionGenerate,
-	})
+
+	// Item controllers (refactored into 3 specialized controllers)
+	itemQueryController := controller.NewItemQueryController(itemList, myItemsList, itemGet)
+	itemCommandController := controller.NewItemCommandController(itemRegister, itemUpdate, itemPurchase)
+	itemAIController := controller.NewItemAIController(descriptionGenerate)
+
 	// --- chat ---
 	chatDAO := dao.NewChatDao(db)
 	chatUsecase := usecase.NewChatUsecase(chatDAO)
@@ -128,25 +125,25 @@ func main() {
 
 	// Item Endpoints
 	// 商品一覧 (GET /items)
-	mux.HandleFunc("GET /items", itemController.HandleItemList)
+	mux.HandleFunc("GET /items", itemQueryController.HandleItemList)
 	// 自分が出品した商品一覧 (GET /items/my)
-	mux.Handle("GET /items/my", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleMyItems)))
+	mux.Handle("GET /items/my", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemQueryController.HandleMyItems)))
 	// 商品出品 (POST /items)
-	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemRegister)))
+	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemCommandController.HandleItemRegister)))
 	// 商品詳細 (GET /items/{id})
-	mux.HandleFunc("GET /items/{id}", itemController.HandleItemDetail)
+	mux.HandleFunc("GET /items/{id}", itemQueryController.HandleItemDetail)
 	// 商品購入 (POST /items/{id}/purchase)
-	mux.Handle("POST /items/{id}/purchase", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemPurchase)))
+	mux.Handle("POST /items/{id}/purchase", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemCommandController.HandleItemPurchase)))
 	// 商品更新 (PUT /items/{id})
-	mux.Handle("PUT /items/{id}", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleItemUpdate)))
+	mux.Handle("PUT /items/{id}", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemCommandController.HandleItemUpdate)))
 	// AI商品説明生成 (POST /items/generate-description)
-	mux.Handle("POST /items/generate-description", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleGenerateDescription)))
+	mux.Handle("POST /items/generate-description", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemAIController.HandleGenerateDescription)))
 
 	// Chat Endpoints
 	mux.Handle("POST /items/{item_id}/chat", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetOrCreateRoom)))
-    mux.Handle("GET /items/{item_id}/chat_rooms", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetChatRoomList)))
-    mux.Handle("GET /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetMessages)))
-    mux.Handle("POST /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleSendMessage)))
+	mux.Handle("GET /items/{item_id}/chat_rooms", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetChatRoomList)))
+	mux.Handle("GET /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetMessages)))
+	mux.Handle("POST /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleSendMessage)))
 	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
 
