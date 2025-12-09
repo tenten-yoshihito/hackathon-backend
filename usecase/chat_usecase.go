@@ -29,7 +29,7 @@ func NewChatUsecase(dao dao.ChatDAO) ChatUsecase {
 	return &chatUsecase{chatDAO: dao}
 }
 
-// GetOrCreateChatRoom : チャットルームがあれば取得、なければ作成して返す
+// GetOrCreateChatRoom :チャットルームがあれば取得、なければ作成して返す
 func (u *chatUsecase) GetOrCreateChatRoom(ctx context.Context, itemID, buyerID, sellerID string) (*model.ChatRoom, error) {
 	// 1. 既存のルームがあるか探す
 	existingRoom, err := u.chatDAO.GetChatRoom(ctx, itemID, buyerID)
@@ -60,12 +60,12 @@ func (u *chatUsecase) GetOrCreateChatRoom(ctx context.Context, itemID, buyerID, 
 	return newRoom, nil
 }
 
-// GetChatRoomList : 商品IDからチャットルーム一覧を取得
+// GetChatRoomList :商品IDからチャットルーム一覧を取得
 func (u *chatUsecase) GetChatRoomList(ctx context.Context, itemID string) ([]model.ChatRoomInfo, error) {
 	return u.chatDAO.GetChatRoomsByItemID(ctx, itemID)
 }
 
-// SendMessage : メッセージを送信
+// SendMessage :メッセージを送信
 func (u *chatUsecase) SendMessage(ctx context.Context, roomID, senderID, content string) error {
 	if content == "" {
 		return fmt.Errorf("message content is empty")
@@ -86,7 +86,7 @@ func (u *chatUsecase) SendMessage(ctx context.Context, roomID, senderID, content
 	return u.chatDAO.SaveMessage(ctx, msg)
 }
 
-// GetMessages : メッセージ履歴を取得
+// GetMessages :メッセージ履歴を取得
 func (u *chatUsecase) GetMessages(ctx context.Context, roomID string) ([]model.Message, error) {
 	return u.chatDAO.GetMessages(ctx, roomID)
 }
