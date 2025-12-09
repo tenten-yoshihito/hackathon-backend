@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/oklog/ulid" 
+	"github.com/oklog/ulid"
 )
 
 var ErrInvalidItemRequest = errors.New("invalid item request")
@@ -19,7 +19,7 @@ type ItemRegister interface {
 }
 
 type itemRegister struct {
-	itemDAO dao.ItemDAO 
+	itemDAO dao.ItemDAO
 }
 
 func NewItemRegister(dao dao.ItemDAO) ItemRegister {
@@ -32,18 +32,18 @@ func (us *itemRegister) RegisterItem(ctx context.Context, uid string, req *model
 		return "", ErrInvalidItemRequest
 	}
 
-	//商品IDを取得
+	// 商品IDを生成
 	t := time.Now()
 	entropy := ulid.Monotonic(rand.Reader, 0)
 	newItemID := ulid.MustNew(ulid.Timestamp(t), entropy).String()
 
 	newItem := model.Item{
 		ItemId:      newItemID,
-		UserId:      uid, 
+		UserId:      uid,
 		Name:        req.Name,
 		Price:       req.Price,
 		Description: req.Description,
-		ImageURLs:   req.ImageURLs, 
+		ImageURLs:   req.ImageURLs,
 		CreatedAt:   t,
 		UpdatedAt:   t,
 	}

@@ -6,12 +6,14 @@ import (
 	"db/model"
 	"errors"
 	"fmt"
+	"log"
 )
 
 type ChatDAO interface {
 	CreateChatRoom(ctx context.Context, room *model.ChatRoom) error
 	GetChatRoom(ctx context.Context, itemID, buyerID string) (*model.ChatRoom, error)
 	GetChatRoomByID(ctx context.Context, roomID string) (*model.ChatRoom, error)
+	GetChatRoomsByItemID(ctx context.Context, itemID string) ([]model.ChatRoomInfo, error)
 	SaveMessage(ctx context.Context, msg *model.Message) error
 	GetMessages(ctx context.Context, roomID string) ([]model.Message, error)
 }
@@ -26,10 +28,24 @@ func NewChatDao(db *sql.DB) ChatDAO {
 
 // チャットルーム作成
 func (dao *chatDao) CreateChatRoom(ctx context.Context, room *model.ChatRoom) error {
-	query := `INSERT INTO chat_rooms (id, item_id, buyer_id, seller_id, created_at) VALUES (?, ?, ?, ?, ?)`
-	_, err := dao.DB.ExecContext(ctx, query, room.Id, room.ItemId, room.BuyerId, room.SellerId, room.CreatedAt)
+	tx, err := dao.DB.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("create chat room failed: %w", err)
+		return fmt.Errorf("fail: txBegin: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("fail: tx.Rollback: %v\n", err)
+		}
+	}()
+
+	query := `INSERT INTO chat_rooms (id, item_id, buyer_id, seller_id, created_at) VALUES (?, ?, ?, ?, ?)`
+	_, err = tx.ExecContext(ctx, query, room.Id, room.ItemId, room.BuyerId, room.SellerId, room.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("fail: insert chat_room: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("fail: tx.Commit: %w", err)
 	}
 	return nil
 }
@@ -38,11 +54,10 @@ func (dao *chatDao) CreateChatRoom(ctx context.Context, room *model.ChatRoom) er
 func (dao *chatDao) GetChatRoom(ctx context.Context, itemID, buyerID string) (*model.ChatRoom, error) {
 	query := `SELECT id, item_id, buyer_id, seller_id, created_at FROM chat_rooms WHERE item_id = ? AND buyer_id = ?`
 	row := dao.DB.QueryRowContext(ctx, query, itemID, buyerID)
-
 	var room model.ChatRoom
 	if err := row.Scan(&room.Id, &room.ItemId, &room.BuyerId, &room.SellerId, &room.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil // 存在しない場合はnil
+			return nil, nil
 		}
 		return nil, fmt.Errorf("get chat room failed: %w", err)
 	}
@@ -60,16 +75,59 @@ func (dao *chatDao) GetChatRoomByID(ctx context.Context, roomID string) (*model.
 	return &room, nil
 }
 
-// メッセージ保存
-func (dao *chatDao) SaveMessage(ctx context.Context, msg *model.Message) error {
-	query := `INSERT INTO messages (id, chat_room_id, sender_id, content, created_at) VALUES (?, ?, ?, ?, ?)`
-	_, err := dao.DB.ExecContext(ctx, query, msg.Id, msg.ChatRoomId, msg.SenderId, msg.Content, msg.CreatedAt)
+// 商品IDからチャットルーム一覧取得]
+func (dao *chatDao) GetChatRoomsByItemID(ctx context.Context, itemID string) ([]model.ChatRoomInfo, error) {
+	query := `
+		SELECT r.id, r.buyer_id, u.name, u.icon_url, r.created_at
+		FROM chat_rooms r
+		JOIN users u ON r.buyer_id = u.id
+		WHERE r.item_id = ?
+		ORDER BY r.created_at DESC
+	`
+	rows, err := dao.DB.QueryContext(ctx, query, itemID)
 	if err != nil {
-		return fmt.Errorf("save message failed: %w", err)
+		return nil, fmt.Errorf("failed to get chat rooms: %w", err)
+	}
+	defer rows.Close()
+
+	var rooms []model.ChatRoomInfo
+	for rows.Next() {
+		var r model.ChatRoomInfo
+		var iconUrl sql.NullString
+		if err := rows.Scan(&r.RoomID, &r.BuyerID, &r.BuyerName, &iconUrl, &r.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan chat room info: %w", err)
+		}
+		if iconUrl.Valid {
+			r.BuyerImageURL = iconUrl.String
+		}
+		rooms = append(rooms, r)
+	}
+	return rooms, nil
+}
+
+//  メッセージ保存 
+func (dao *chatDao) SaveMessage(ctx context.Context, msg *model.Message) error {
+	tx, err := dao.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("fail: txBegin: %w", err)
+	}
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("fail: tx.Rollback: %v\n", err)
+		}
+	}()
+
+	query := `INSERT INTO messages (id, chat_room_id, sender_id, content, created_at) VALUES (?, ?, ?, ?, ?)`
+	_, err = tx.ExecContext(ctx, query, msg.Id, msg.ChatRoomId, msg.SenderId, msg.Content, msg.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("fail: insert message: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("fail: tx.Commit: %w", err)
 	}
 	return nil
 }
-
 // メッセージ一覧取得
 func (dao *chatDao) GetMessages(ctx context.Context, roomID string) ([]model.Message, error) {
 	query := `SELECT id, chat_room_id, sender_id, content, created_at FROM messages WHERE chat_room_id = ? ORDER BY created_at ASC`

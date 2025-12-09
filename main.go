@@ -22,7 +22,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// UserDBInit,環境変数からDB接続情報を取得し、DB接続を初期化する
+// DBInit :環境変数からDB接続情報を取得し、DB接続を初期化
 func DBInit() (*sql.DB, error) {
 
 	// DB接続のための準備
@@ -46,14 +46,14 @@ func DBInit() (*sql.DB, error) {
 	return db, nil
 }
 
-// Firebaseの初期化
+// FirebaseAdminInit :Firebaseを初期化
 func FirebaseAdminInit(ctx context.Context) (*auth.Client, error) {
 
 	app, err := firebase.NewApp(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing firebase app: %w", err)
 	}
-	// 認証クライアントの取得
+	// 認証クライアントを取得
 	authClient, err := app.Auth(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting Auth client: %w", err)
@@ -80,13 +80,13 @@ func main() {
 	}
 	geminiService := service.NewGeminiService(apiKey)
 
-	//--- DBの接続---
+	// --- DBの接続 ---
 	db, err := DBInit()
 	if err != nil {
 		log.Fatalf("DBの初期化に失敗: %v", err)
 	}
 	log.Println("successfully connected to database")
-	//--- Firebase Admin SDKの初期化 ---
+	// --- Firebase Admin SDKの初期化 ---
 	authClient, err := FirebaseAdminInit(context.Background())
 	if err != nil {
 		log.Fatalf("Firebase Admin SDKの初期化に失敗: %v", err)
@@ -119,7 +119,7 @@ func main() {
 	chatDAO := dao.NewChatDao(db)
 	chatUsecase := usecase.NewChatUsecase(chatDAO)
 	chatController := controller.NewChatController(chatUsecase)
-	//--- 実際の処理 ---
+	// --- 実際の処理 ---
 
 	mux := http.NewServeMux()
 	// User Endpoints
@@ -143,13 +143,10 @@ func main() {
 	mux.Handle("POST /items/generate-description", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemController.HandleGenerateDescription)))
 
 	// Chat Endpoints
-	// チャットルーム作成・取得 (商品詳細画面の「コメント」ボタンから呼ぶ)
-    mux.Handle("POST /items/{item_id}/chat", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetOrCreateRoom)))
-	// メッセージ送信
+	mux.Handle("POST /items/{item_id}/chat", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetOrCreateRoom)))
+    mux.Handle("GET /items/{item_id}/chat_rooms", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetChatRoomList)))
+    mux.Handle("GET /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetMessages)))
     mux.Handle("POST /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleSendMessage)))
-	// メッセージ一覧取得
-	mux.Handle("GET /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetMessages)))
-	
 	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
 
@@ -162,7 +159,7 @@ func main() {
 	}
 }
 
-// Ctrl+CでHTTPサーバー停止時にDBをクローズする
+// closeDBWithSysCall :Ctrl+CでHTTPサーバー停止時にDBをクローズ
 func closeDBWithSysCall(db *sql.DB) {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT)

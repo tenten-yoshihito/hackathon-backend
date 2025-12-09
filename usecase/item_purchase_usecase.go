@@ -15,12 +15,12 @@ type itemPurchase struct {
 	itemDAO dao.ItemDAO
 }
 
-// NewItemPurchase : ItemPurchaseの生成
+// NewItemPurchase :ItemPurchaseを生成
 func NewItemPurchase(itemDAO dao.ItemDAO) ItemPurchase {
 	return &itemPurchase{itemDAO: itemDAO}
 }
 
-// PurchaseItem : 商品購入処理
+// PurchaseItem :商品購入処理
 func (u *itemPurchase) PurchaseItem(ctx context.Context, itemID string, buyerID string) error {
 	// 商品が存在し、販売中かチェック
 	item, err := u.itemDAO.GetItem(ctx, itemID)
