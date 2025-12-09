@@ -48,16 +48,14 @@ func (c *ItemController) HandleItemRegister(w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 	uid, err := middleware.GetUserIDFromContext(ctx)
 	if err != nil {
-		log.Printf("fail: GetUserIDFromContext, %v\n", err)
-		w.WriteHeader(http.StatusUnauthorized)
+		respondError(w, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
 	var req model.ItemCreateRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		log.Printf("fail: json.NewDecoder, %v\n", err)
-		w.WriteHeader(http.StatusBadRequest)
+		respondError(w, http.StatusBadRequest, "Invalid request body", err)
 		return
 	}
 
@@ -65,24 +63,15 @@ func (c *ItemController) HandleItemRegister(w http.ResponseWriter, r *http.Reque
 
 	if err != nil {
 		if errors.Is(err, usecase.ErrInvalidItemRequest) {
-			log.Printf("fail: invalid request, %v\n", err)
-			w.WriteHeader(http.StatusBadRequest)
+			respondError(w, http.StatusBadRequest, "Invalid request", err)
 		} else {
-			log.Printf("fail: internal server error, %v\n", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			respondError(w, http.StatusInternalServerError, "Internal server error", err)
 		}
 		return
 	}
 
 	log.Printf("successfully created item: id=%s", newItemID)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	res := map[string]string{"id": newItemID}
-
-	if err := json.NewEncoder(w).Encode(res); err != nil {
-		log.Printf("fail: json.NewEncoder, %v\n", err)
-	}
+	respondJSON(w, http.StatusCreated, map[string]string{"id": newItemID})
 }
 
 func (c *ItemController) HandleItemList(w http.ResponseWriter, r *http.Request) {
@@ -138,16 +127,14 @@ func (c *ItemController) HandleItemPurchase(w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 	uid, err := middleware.GetUserIDFromContext(ctx)
 	if err != nil {
-		log.Printf("fail: GetUserIDFromContext, %v\n", err)
-		w.WriteHeader(http.StatusUnauthorized)
+		respondError(w, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
 	itemID := r.PathValue("id")
 
 	if err := c.purchase.PurchaseItem(ctx, itemID, uid); err != nil {
-		log.Printf("fail: purchase item, %v\n", err)
-		respondError(w, http.StatusBadRequest, err.Error(), err)
+		respondError(w, http.StatusBadRequest, "Failed to purchase item", err)
 		return
 	}
 
@@ -190,8 +177,7 @@ func (c *ItemController) HandleItemUpdate(w http.ResponseWriter, r *http.Request
 	// Get user ID from context
 	userID, err := middleware.GetUserIDFromContext(ctx)
 	if err != nil {
-		log.Printf("failed to get user ID from context: %v\n", err)
-		w.WriteHeader(http.StatusUnauthorized)
+		respondError(w, http.StatusUnauthorized, "Unauthorized", err)
 		return
 	}
 
