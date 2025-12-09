@@ -245,12 +245,12 @@ func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string
 
 	// 所有者チェック
 	if ownerID != userID {
-		return fmt.Errorf("not authorized to update this item")
+		return model.ErrNotAuthorized
 	}
 
 	// 売却済みチェック
 	if status == model.StatusSold {
-		return fmt.Errorf("cannot update sold item")
+		return model.ErrCannotUpdateSoldItem
 	}
 
 	// 商品情報を更新

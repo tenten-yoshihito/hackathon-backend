@@ -23,7 +23,7 @@ func NewItemUpdate(itemDAO dao.ItemDAO) ItemUpdate {
 // Execute updates an item
 func (u *itemUpdate) Execute(ctx context.Context, req *model.ItemUpdateRequest) error {
 	if !req.IsValid() {
-		return fmt.Errorf("invalid item update request")
+		return model.ErrInvalidUpdateRequest
 	}
 
 	err := u.itemDAO.UpdateItem(ctx, req.ItemID, req.UserID, req.Name, req.Price, req.Description)

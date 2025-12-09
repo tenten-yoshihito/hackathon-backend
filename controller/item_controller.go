@@ -203,17 +203,20 @@ func (c *ItemController) HandleItemUpdate(w http.ResponseWriter, r *http.Request
 	err = c.update.Execute(ctx, &req)
 	if err != nil {
 		log.Printf("failed to update item: %v\n", err)
-		if errors.Is(err, errors.New("not authorized to update this item")) {
+		if errors.Is(err, model.ErrNotAuthorized) {
 			respondError(w, http.StatusForbidden, "Not authorized to update this item", err)
 			return
 		}
-		if errors.Is(err, errors.New("cannot update sold item")) {
+		if errors.Is(err, model.ErrCannotUpdateSoldItem) {
 			respondError(w, http.StatusBadRequest, "Cannot update sold item", err)
+			return
+		}
+		if errors.Is(err, model.ErrInvalidUpdateRequest) {
+			respondError(w, http.StatusBadRequest, "Invalid request", err)
 			return
 		}
 		respondError(w, http.StatusInternalServerError, "Failed to update item", err)
 		return
 	}
 
-	respondJSON(w, http.StatusOK, map[string]string{"message": "Item updated successfully"})
 }
