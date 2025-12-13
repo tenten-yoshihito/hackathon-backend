@@ -2,6 +2,7 @@ package controller
 
 import (
 	"db/middleware"
+	"db/model"
 	"db/usecase"
 	"log"
 	"net/http"
@@ -30,10 +31,24 @@ func NewItemQueryController(
 	}
 }
 
-// HandleItemList retrieves all items (GET /items)
+// HandleItemList retrieves all items or searches by keyword (GET /items?name=keyword)
 func (c *ItemQueryController) HandleItemList(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	items, err := c.list.GetItems(ctx)
+
+	// Check for search keyword in query parameter
+	keyword := r.URL.Query().Get("name")
+
+	var items []model.ItemSimple
+	var err error
+
+	if keyword != "" {
+		// Search items by keyword
+		items, err = c.list.SearchItems(ctx, keyword)
+	} else {
+		// Get all items
+		items, err = c.list.GetItems(ctx)
+	}
+
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to fetch items", err)
 		return
