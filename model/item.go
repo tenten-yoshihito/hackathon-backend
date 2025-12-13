@@ -9,15 +9,17 @@ const (
 )
 
 type Item struct {
-	ItemId      string    `json:"id"`
-	UserId      string    `json:"user_id"`
-	Name        string    `json:"name"`
-	Price       int       `json:"price"`
-	Description string    `json:"description,omitempty"`
-	ImageURLs   []string  `json:"image_urls"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ItemId        string    `json:"id"`
+	UserId        string    `json:"user_id"`
+	Name          string    `json:"name"`
+	Price         int       `json:"price"`
+	Description   string    `json:"description,omitempty"`
+	ImageURLs     []string  `json:"image_urls"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	SellerName    string    `json:"seller_name"`
+	SellerIconURL string    `json:"seller_icon_url"`
 }
 
 type ItemCreateRequest struct {

@@ -59,13 +59,14 @@ func (dao *likeDao) GetLikedItems(ctx context.Context, userID string) ([]model.I
 			i.name, 
 			i.price, 
 			i.status,
-			COALESCE(MIN(img.image_url), '') AS image_url
+			COALESCE(MIN(img.image_url), '') AS image_url,
+			MAX(l.created_at) AS liked_at
 		FROM likes l
 		INNER JOIN items i ON l.item_id = i.id
 		LEFT JOIN item_images img ON i.id = img.item_id
 		WHERE l.user_id = ?
 		GROUP BY i.id, i.name, i.price, i.status
-		ORDER BY l.created_at DESC
+		ORDER BY liked_at DESC
 	`
 
 	rows, err := dao.db.QueryContext(ctx, query, userID)
@@ -77,7 +78,8 @@ func (dao *likeDao) GetLikedItems(ctx context.Context, userID string) ([]model.I
 	items := make([]model.ItemSimple, 0)
 	for rows.Next() {
 		var item model.ItemSimple
-		if err := rows.Scan(&item.ItemId, &item.Name, &item.Price, &item.Status, &item.ImageURL); err != nil {
+		var likedAt time.Time
+		if err := rows.Scan(&item.ItemId, &item.Name, &item.Price, &item.Status, &item.ImageURL, &likedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan liked item: %w", err)
 		}
 		items = append(items, item)

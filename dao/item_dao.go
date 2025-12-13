@@ -190,15 +190,41 @@ func (dao *itemDao) GetUserItems(ctx context.Context, userID string) ([]model.It
 
 // GetItem : 指定されたitemIDの商品を取得
 func (dao *itemDao) GetItem(ctx context.Context, itemID string) (*model.Item, error) {
-	// 商品本体を取得
+	// 商品本体と出品者情報を取得
 
 	// log.Printf("DEBUG: Searching item with ID: [%s]", itemID)
 
-	queryItem := "SELECT id, user_id, name, price, COALESCE(description, '') as description, status, created_at, updated_at FROM items WHERE id = ?"
+	queryItem := `
+		SELECT 
+			i.id, 
+			i.user_id, 
+			i.name, 
+			i.price, 
+			COALESCE(i.description, '') as description, 
+			i.status, 
+			i.created_at, 
+			i.updated_at,
+			u.name as seller_name,
+			COALESCE(u.icon_url, '') as seller_icon_url
+		FROM items i
+		INNER JOIN users u ON i.user_id = u.id
+		WHERE i.id = ?
+	`
 	row := dao.DB.QueryRowContext(ctx, queryItem, itemID)
 
 	var item model.Item
-	if err := row.Scan(&item.ItemId, &item.UserId, &item.Name, &item.Price, &item.Description, &item.Status, &item.CreatedAt, &item.UpdatedAt); err != nil {
+	if err := row.Scan(
+		&item.ItemId,
+		&item.UserId,
+		&item.Name,
+		&item.Price,
+		&item.Description,
+		&item.Status,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+		&item.SellerName,
+		&item.SellerIconURL,
+	); err != nil {
 		return nil, fmt.Errorf("fail: fetch item: %w", err)
 	}
 
