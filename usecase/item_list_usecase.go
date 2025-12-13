@@ -5,6 +5,7 @@ import (
 	"db/dao"
 	"db/model"
 	"fmt"
+	"strings"
 )
 
 type ItemList interface {
@@ -31,6 +32,9 @@ func (us *itemList) GetItems(ctx context.Context) ([]model.ItemSimple, error) {
 }
 
 func (us *itemList) SearchItems(ctx context.Context, keyword string) ([]model.ItemSimple, error) {
+	// キーワードの前後の空白を削除
+	keyword = strings.TrimSpace(keyword)
+
 	if keyword == "" {
 		return nil, fmt.Errorf("keyword is required")
 	}

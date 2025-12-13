@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -123,13 +124,16 @@ func (dao *itemDao) SearchItems(ctx context.Context, keyword string) ([]model.It
 			COALESCE((SELECT image_url FROM item_images WHERE item_id = i.id LIMIT 1), '') as image_url,
 			i.status
 		FROM items i
-		WHERE i.status = ? AND i.name LIKE ?
-		ORDER BY i.created_at DESC`
+		WHERE i.name LIKE ?
+		ORDER BY i.created_at DESC
+		LIMIT 100`
 
+	// LIKE特殊文字をエスケープ
+	escapedKeyword := escapeLikeString(keyword)
 	// キーワードの前後に % を付けて部分一致検索
-	searchKeyword := "%" + keyword + "%"
+	searchKeyword := "%" + escapedKeyword + "%"
 
-	rows, err := dao.DB.QueryContext(ctx, query, model.StatusOnSale, searchKeyword)
+	rows, err := dao.DB.QueryContext(ctx, query, searchKeyword)
 	if err != nil {
 		return nil, fmt.Errorf("fail:dao.DB.Query:%w", err)
 	}
@@ -150,6 +154,14 @@ func (dao *itemDao) SearchItems(ctx context.Context, keyword string) ([]model.It
 	}
 
 	return items, nil
+}
+
+// escapeLikeString LIKE句の特殊文字をエスケープ
+func escapeLikeString(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "%", "\\%")
+	s = strings.ReplaceAll(s, "_", "\\_")
+	return s
 }
 
 // GetMyItems : 自分の出品商品一覧を取得
