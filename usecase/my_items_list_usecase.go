@@ -8,7 +8,7 @@ import (
 )
 
 type MyItemsList interface {
-	Execute(ctx context.Context, userID string) ([]model.ItemSimple, error)
+	GetMyItems(ctx context.Context, userID string) ([]model.ItemSimple, error)
 }
 
 type myItemsList struct {
@@ -20,8 +20,8 @@ func NewMyItemsList(itemDAO dao.ItemDAO) MyItemsList {
 	return &myItemsList{itemDAO: itemDAO}
 }
 
-// Execute retrieves the list of items listed by the user
-func (u *myItemsList) Execute(ctx context.Context, userID string) ([]model.ItemSimple, error) {
+// GetMyItems retrieves the list of items listed by the user
+func (u *myItemsList) GetMyItems(ctx context.Context, userID string) ([]model.ItemSimple, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("user ID is required")
 	}

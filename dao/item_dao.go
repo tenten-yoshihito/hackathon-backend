@@ -14,6 +14,7 @@ type ItemDAO interface {
 	ItemInsert(ctx context.Context, item *model.Item) error
 	GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 	GetMyItems(ctx context.Context, sellerID string) ([]model.ItemSimple, error)
+	GetUserItems(ctx context.Context, userID string) ([]model.ItemSimple, error)
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
 	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string) error
@@ -111,33 +112,73 @@ func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 	return items, nil
 }
 
-// GetMyItems : 自分が出品した商品一覧を取得
+// GetMyItems : 自分の出品商品一覧を取得
 func (dao *itemDao) GetMyItems(ctx context.Context, sellerID string) ([]model.ItemSimple, error) {
 	query := `
 		SELECT 
 			i.id, 
 			i.name, 
 			i.price, 
-			COALESCE((SELECT image_url FROM item_images WHERE item_id = i.id LIMIT 1), '') as image_url,
-			i.status
+			i.status,
+			COALESCE(MIN(img.image_url), '') AS image_url
 		FROM items i
+		LEFT JOIN item_images img ON i.id = img.item_id
 		WHERE i.user_id = ?
-		ORDER BY i.created_at DESC`
+		GROUP BY i.id, i.name, i.price, i.status
+		ORDER BY i.created_at DESC
+	`
 
 	rows, err := dao.DB.QueryContext(ctx, query, sellerID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query my items: %w", err)
+		return nil, fmt.Errorf("fail:db.Query:%w", err)
 	}
 	defer rows.Close()
 
 	items := make([]model.ItemSimple, 0)
-
 	for rows.Next() {
-		var i model.ItemSimple
-		if err := rows.Scan(&i.ItemId, &i.Name, &i.Price, &i.ImageURL, &i.Status); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
+		var item model.ItemSimple
+		if err := rows.Scan(&item.ItemId, &item.Name, &item.Price, &item.Status, &item.ImageURL); err != nil {
+			return nil, fmt.Errorf("fail:rows.Scan:%w", err)
 		}
-		items = append(items, i)
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	return items, nil
+}
+
+// GetUserItems : 指定ユーザーの出品商品一覧を取得（プロフィールページ用）
+func (dao *itemDao) GetUserItems(ctx context.Context, userID string) ([]model.ItemSimple, error) {
+	query := `
+		SELECT 
+			i.id, 
+			i.name, 
+			i.price, 
+			i.status,
+			COALESCE(MIN(img.image_url), '') AS image_url
+		FROM items i
+		LEFT JOIN item_images img ON i.id = img.item_id
+		WHERE i.user_id = ?
+		GROUP BY i.id, i.name, i.price, i.status
+		ORDER BY i.created_at DESC
+	`
+
+	rows, err := dao.DB.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("fail:db.Query:%w", err)
+	}
+	defer rows.Close()
+
+	items := make([]model.ItemSimple, 0)
+	for rows.Next() {
+		var item model.ItemSimple
+		if err := rows.Scan(&item.ItemId, &item.Name, &item.Price, &item.Status, &item.ImageURL); err != nil {
+			return nil, fmt.Errorf("fail:rows.Scan:%w", err)
+		}
+		items = append(items, item)
 	}
 
 	if err := rows.Err(); err != nil {

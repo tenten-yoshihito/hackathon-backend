@@ -9,21 +9,24 @@ import (
 
 // ItemQueryController handles read-only item operations
 type ItemQueryController struct {
-	list        usecase.ItemList
-	myItemsList usecase.MyItemsList
-	get         usecase.ItemGet
+	list          usecase.ItemList
+	myItemsList   usecase.MyItemsList
+	userItemsList usecase.UserItemsList
+	get           usecase.ItemGet
 }
 
 // NewItemQueryController creates a new ItemQueryController
 func NewItemQueryController(
 	list usecase.ItemList,
 	myItemsList usecase.MyItemsList,
+	userItemsList usecase.UserItemsList,
 	get usecase.ItemGet,
 ) *ItemQueryController {
 	return &ItemQueryController{
-		list:        list,
-		myItemsList: myItemsList,
-		get:         get,
+		list:          list,
+		myItemsList:   myItemsList,
+		userItemsList: userItemsList,
+		get:           get,
 	}
 }
 
@@ -65,10 +68,31 @@ func (c *ItemQueryController) HandleMyItems(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	items, err := c.myItemsList.Execute(ctx, userID)
+	items, err := c.myItemsList.GetMyItems(ctx, userID)
 	if err != nil {
 		log.Printf("failed to get my items: %v\n", err)
 		respondError(w, http.StatusInternalServerError, "Failed to get my items", err)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, items)
+}
+
+// HandleUserItems retrieves the list of items listed by a specific user (GET /users/{userId}/items)
+func (c *ItemQueryController) HandleUserItems(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get user ID from URL parameter
+	userID := r.PathValue("userId")
+	if userID == "" {
+		respondError(w, http.StatusBadRequest, "User ID is required", nil)
+		return
+	}
+
+	items, err := c.userItemsList.GetUserItems(ctx, userID)
+	if err != nil {
+		log.Printf("failed to get user items: %v\n", err)
+		respondError(w, http.StatusInternalServerError, "Failed to get user items", err)
 		return
 	}
 

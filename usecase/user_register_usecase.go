@@ -4,13 +4,10 @@ import (
 	"context"
 	"db/dao"
 	"db/model"
-	"errors"
 	"fmt"
 )
 
 // UserRegisterUsecase handles user registration business logic
-
-var ErrInvalidRequest = errors.New("invalid request")
 
 type UserRegister interface {
 	Register(ctx context.Context, uid string, req *model.UserCreateRequest) error
@@ -28,7 +25,7 @@ func NewUserRegister(us dao.UserDAO) UserRegister {
 func (us *userRegister) Register(ctx context.Context, uid string, req *model.UserCreateRequest) error {
 
 	if !req.IsValid() {
-		return ErrInvalidRequest
+		return model.ErrInvalidRequest
 	}
 
 	newUser := model.User{
