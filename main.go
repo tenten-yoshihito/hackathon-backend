@@ -120,6 +120,11 @@ func main() {
 	chatDAO := dao.NewChatDao(db)
 	chatUsecase := usecase.NewChatUsecase(chatDAO)
 	chatController := controller.NewChatController(chatUsecase)
+
+	// --- like ---
+	likeDAO := dao.NewLikeDao(db)
+	likeUsecase := usecase.NewLikeUsecase(likeDAO)
+	likeController := controller.NewLikeController(likeUsecase)
 	// --- 実際の処理 ---
 
 	mux := http.NewServeMux()
@@ -143,6 +148,11 @@ func main() {
 	mux.Handle("PUT /items/{id}", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemCommandController.HandleItemUpdate)))
 	// AI商品説明生成 (POST /items/generate-description)
 	mux.Handle("POST /items/generate-description", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemAIController.HandleGenerateDescription)))
+
+	// Like Endpoints
+	mux.Handle("POST /items/{id}/like", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(likeController.HandleToggleLike)))
+	mux.Handle("GET /items/liked", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(likeController.HandleGetLikedItems)))
+	mux.Handle("GET /items/liked-ids", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(likeController.HandleGetLikedItemIDs)))
 
 	// Chat Endpoints
 	mux.Handle("POST /items/{item_id}/chat", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetOrCreateRoom)))
