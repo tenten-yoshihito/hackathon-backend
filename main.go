@@ -96,19 +96,23 @@ func main() {
 	userDAO := dao.NewUserDao(db)
 	userRegister := usecase.NewUserRegister(userDAO)
 	userSearch := usecase.NewUserSearch(userDAO)
-	userController := controller.NewUserController(userRegister, userSearch)
+	userGet := usecase.NewUserGet(userDAO)
+	userUpdate := usecase.NewUserUpdate(userDAO)
+	userController := controller.NewUserController(userRegister, userSearch, userGet, userUpdate)
+
 	// --- item ---
 	itemDAO := dao.NewItemDao(db)
 	itemRegister := usecase.NewItemRegister(itemDAO)
 	itemList := usecase.NewItemList(itemDAO)
 	myItemsList := usecase.NewMyItemsList(itemDAO)
+	userItemsList := usecase.NewUserItemsList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
 	itemPurchase := usecase.NewItemPurchase(itemDAO)
 	itemUpdate := usecase.NewItemUpdate(itemDAO)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
 
 	// Item controllers (refactored into 3 specialized controllers)
-	itemQueryController := controller.NewItemQueryController(itemList, myItemsList, itemGet)
+	itemQueryController := controller.NewItemQueryController(itemList, myItemsList, userItemsList, itemGet)
 	itemCommandController := controller.NewItemCommandController(itemRegister, itemUpdate, itemPurchase)
 	itemAIController := controller.NewItemAIController(descriptionGenerate)
 
@@ -122,16 +126,17 @@ func main() {
 	// User Endpoints
 	mux.HandleFunc("GET /user", userController.HandleSearchUser)
 	mux.Handle("POST /register", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(userController.HandleProfileRegister)))
+	mux.HandleFunc("GET /users/{id}", userController.HandleGetUser)
+	mux.Handle("PUT /users/me", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(userController.HandleUpdateUser)))
 
-	// Item Endpoints
-	// 商品一覧 (GET /items)
+	// Item Query Endpoints
 	mux.HandleFunc("GET /items", itemQueryController.HandleItemList)
-	// 自分が出品した商品一覧 (GET /items/my)
+	mux.HandleFunc("GET /items/{id}", itemQueryController.HandleItemDetail)
 	mux.Handle("GET /items/my", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemQueryController.HandleMyItems)))
+	mux.HandleFunc("GET /users/{userId}/items", itemQueryController.HandleUserItems)
+
 	// 商品出品 (POST /items)
 	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemCommandController.HandleItemRegister)))
-	// 商品詳細 (GET /items/{id})
-	mux.HandleFunc("GET /items/{id}", itemQueryController.HandleItemDetail)
 	// 商品購入 (POST /items/{id}/purchase)
 	mux.Handle("POST /items/{id}/purchase", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemCommandController.HandleItemPurchase)))
 	// 商品更新 (PUT /items/{id})

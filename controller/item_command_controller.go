@@ -110,7 +110,7 @@ func (c *ItemCommandController) HandleItemUpdate(w http.ResponseWriter, r *http.
 	req.UserID = userID
 
 	// Execute update (validation is done in usecase)
-	err = c.update.Execute(ctx, &req)
+	err = c.update.UpdateItem(ctx, &req)
 	if err != nil {
 		log.Printf("failed to update item: %v\n", err)
 		if errors.Is(err, model.ErrNotAuthorized) {

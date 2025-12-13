@@ -13,6 +13,8 @@ import (
 type UserDAO interface {
 	List(ctx context.Context) ([]model.User, error)
 	DBInsert(ctx context.Context, user *model.User) error
+	GetUser(ctx context.Context, id string) (*model.User, error)
+	UpdateUser(ctx context.Context, user *model.User) error
 }
 
 type userDao struct {
@@ -77,6 +79,72 @@ func (dao *userDao) DBInsert(ctx context.Context, user *model.User) error {
 	if err != nil {
 		return fmt.Errorf("fail:db.Exec: %w", err)
 	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("fail:tx.Commit: %w", err)
+	}
+
+	return nil
+}
+
+// GetUser : 指定されたIDのユーザーを取得
+func (dao *userDao) GetUser(ctx context.Context, id string) (*model.User, error) {
+	query := `SELECT id, name, age, email, bio, icon_url, created_at, updated_at 
+              FROM users WHERE id = ?`
+
+	var user model.User
+	err := dao.DB.QueryRowContext(ctx, query, id).Scan(
+		&user.Id,
+		&user.Name,
+		&user.Age,
+		&user.Email,
+		&user.Bio,
+		&user.IconURL,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("user not found: %w", err)
+		}
+		return nil, fmt.Errorf("fail:dao.DB.QueryRow:%w", err)
+	}
+
+	return &user, nil
+}
+
+// UpdateUser : ユーザー情報を更新
+func (dao *userDao) UpdateUser(ctx context.Context, user *model.User) error {
+	tx, err := dao.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("fail:txBegin(): %w", err)
+	}
+
+	defer func() {
+		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
+			log.Printf("fail:tx.Rollback,%v\n", err)
+		}
+	}()
+
+	now := time.Now()
+	query := `UPDATE users 
+              SET name = ?, age = ?, bio = ?, icon_url = ?, updated_at = ? 
+              WHERE id = ?`
+
+	result, err := tx.ExecContext(ctx, query, user.Name, user.Age, user.Bio, user.IconURL, now, user.Id)
+	if err != nil {
+		return fmt.Errorf("fail:tx.Exec: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("fail:result.RowsAffected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("fail:tx.Commit: %w", err)
 	}

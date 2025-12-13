@@ -8,7 +8,7 @@ import (
 )
 
 type ItemUpdate interface {
-	Execute(ctx context.Context, req *model.ItemUpdateRequest) error
+	UpdateItem(ctx context.Context, req *model.ItemUpdateRequest) error
 }
 
 type itemUpdate struct {
@@ -20,10 +20,10 @@ func NewItemUpdate(itemDAO dao.ItemDAO) ItemUpdate {
 	return &itemUpdate{itemDAO: itemDAO}
 }
 
-// Execute updates an item
-func (u *itemUpdate) Execute(ctx context.Context, req *model.ItemUpdateRequest) error {
+// UpdateItem updates an existing item
+func (u *itemUpdate) UpdateItem(ctx context.Context, req *model.ItemUpdateRequest) error {
 	if !req.IsValid() {
-		return model.ErrInvalidUpdateRequest
+		return fmt.Errorf("invalid request")
 	}
 
 	err := u.itemDAO.UpdateItem(ctx, req.ItemID, req.UserID, req.Name, req.Price, req.Description)
