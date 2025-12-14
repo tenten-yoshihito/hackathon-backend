@@ -17,7 +17,7 @@ func NewLikeController(likeUsecase usecase.LikeUsecase) *LikeController {
 	}
 }
 
-// HandleToggleLike toggles a like on an item (POST /items/{id}/like)
+// HandleToggleLike : 商品のいいねをトグルする (POST /items/{id}/like)
 func (c *LikeController) HandleToggleLike(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -46,7 +46,7 @@ func (c *LikeController) HandleToggleLike(w http.ResponseWriter, r *http.Request
 	respondJSON(w, http.StatusOK, map[string]string{"message": "Like toggled successfully"})
 }
 
-// HandleGetLikedItems retrieves items that the user has liked (GET /items/liked)
+// HandleGetLikedItems : ユーザーがいいねした商品を取得する (GET /items/liked)
 func (c *LikeController) HandleGetLikedItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -68,7 +68,7 @@ func (c *LikeController) HandleGetLikedItems(w http.ResponseWriter, r *http.Requ
 	respondJSON(w, http.StatusOK, items)
 }
 
-// HandleGetLikedItemIDs retrieves the IDs of items that the user has liked (GET /items/liked-ids)
+// HandleGetLikedItemIDs : ユーザーがいいねした商品のIDを取得する (GET /items/liked-ids)
 func (c *LikeController) HandleGetLikedItemIDs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

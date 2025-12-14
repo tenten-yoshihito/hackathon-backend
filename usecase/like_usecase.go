@@ -21,7 +21,6 @@ func NewLikeUsecase(likeDAO dao.LikeDAO) LikeUsecase {
 	return &likeUsecase{likeDAO: likeDAO}
 }
 
-// ToggleLike toggles a like on an item
 func (u *likeUsecase) ToggleLike(ctx context.Context, userID, itemID string) error {
 	if userID == "" {
 		return fmt.Errorf("user ID is required")
@@ -38,7 +37,6 @@ func (u *likeUsecase) ToggleLike(ctx context.Context, userID, itemID string) err
 	return nil
 }
 
-// GetLikedItems retrieves items that the user has liked
 func (u *likeUsecase) GetLikedItems(ctx context.Context, userID string) ([]model.ItemSimple, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("user ID is required")
@@ -52,7 +50,6 @@ func (u *likeUsecase) GetLikedItems(ctx context.Context, userID string) ([]model
 	return items, nil
 }
 
-// GetLikedItemIDs retrieves the IDs of items that the user has liked
 func (u *likeUsecase) GetLikedItemIDs(ctx context.Context, userID string) ([]string, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("user ID is required")

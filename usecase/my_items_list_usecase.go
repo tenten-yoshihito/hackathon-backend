@@ -15,12 +15,10 @@ type myItemsList struct {
 	itemDAO dao.ItemDAO
 }
 
-// NewMyItemsList creates a new MyItemsList usecase
 func NewMyItemsList(itemDAO dao.ItemDAO) MyItemsList {
 	return &myItemsList{itemDAO: itemDAO}
 }
 
-// GetMyItems retrieves the list of items listed by the user
 func (u *myItemsList) GetMyItems(ctx context.Context, userID string) ([]model.ItemSimple, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("user ID is required")

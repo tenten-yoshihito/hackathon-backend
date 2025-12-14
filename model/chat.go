@@ -25,7 +25,7 @@ type ChatRoomInfo struct {
 	RoomID        string    `json:"room_id"`
 	BuyerID       string    `json:"buyer_id"`
 	BuyerName     string    `json:"buyer_name"`
-	BuyerImageURL string    `json:"buyer_image_url"` // 👈 これを追加
+	BuyerImageURL string    `json:"buyer_image_url"` 
 	CreatedAt     time.Time `json:"created_at"`
 }
 

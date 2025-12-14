@@ -7,8 +7,6 @@ import (
 	"fmt"
 )
 
-// UserRegisterUsecase handles user registration business logic
-
 type UserRegister interface {
 	Register(ctx context.Context, uid string, req *model.UserCreateRequest) error
 }
@@ -17,7 +15,6 @@ type userRegister struct {
 	userDAO dao.UserDAO
 }
 
-// NewUserRegister :daoからUserDAOを受けとり、userRegister構造体を生成して返す (この構造体にRegisterメソッドがある)
 func NewUserRegister(us dao.UserDAO) UserRegister {
 	return &userRegister{userDAO: us}
 }

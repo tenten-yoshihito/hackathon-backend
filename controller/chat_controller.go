@@ -50,7 +50,10 @@ func (c *ChatController) HandleGetChatRoomList(w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 	itemID := r.PathValue("item_id")
 	rooms, err := c.chatUsecase.GetChatRoomList(ctx, itemID)
-	if err != nil { respondError(w, http.StatusInternalServerError, "Failed to get chat list", err); return }
+	if err != nil {
+		respondError(w, http.StatusInternalServerError, "Failed to get chat list", err)
+		return
+	}
 	respondJSON(w, http.StatusOK, map[string]interface{}{"rooms": rooms})
 }
 

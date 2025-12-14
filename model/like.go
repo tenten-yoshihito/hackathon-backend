@@ -2,7 +2,7 @@ package model
 
 import "time"
 
-// Like represents a user's like on an item
+// Like : いいねの構造体
 type Like struct {
 	UserID    string    `json:"user_id"`
 	ItemID    string    `json:"item_id"`

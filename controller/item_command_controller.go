@@ -10,14 +10,13 @@ import (
 	"net/http"
 )
 
-// ItemCommandController handles item creation, update, and purchase operations
+// ItemCommandController : 商品の状態を更新するコントローラ
 type ItemCommandController struct {
 	register usecase.ItemRegister
 	update   usecase.ItemUpdate
 	purchase usecase.ItemPurchase
 }
 
-// NewItemCommandController creates a new ItemCommandController
 func NewItemCommandController(
 	register usecase.ItemRegister,
 	update usecase.ItemUpdate,
@@ -30,7 +29,7 @@ func NewItemCommandController(
 	}
 }
 
-// HandleItemRegister creates a new item (POST /items)
+// HandleItemRegister : 商品登録 (POST /items)
 func (c *ItemCommandController) HandleItemRegister(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	uid, err := middleware.GetUserIDFromContext(ctx)
@@ -61,7 +60,7 @@ func (c *ItemCommandController) HandleItemRegister(w http.ResponseWriter, r *htt
 	respondJSON(w, http.StatusCreated, map[string]string{"id": newItemID})
 }
 
-// HandleItemPurchase purchases an item (POST /items/{id}/purchase)
+// HandleItemPurchase : 商品購入処理 (POST /items/{id}/purchase)
 func (c *ItemCommandController) HandleItemPurchase(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	uid, err := middleware.GetUserIDFromContext(ctx)
@@ -80,7 +79,7 @@ func (c *ItemCommandController) HandleItemPurchase(w http.ResponseWriter, r *htt
 	respondJSON(w, http.StatusOK, map[string]string{"message": "purchase successful"})
 }
 
-// HandleItemUpdate updates an item (PUT /items/{id})
+// HandleItemUpdate : 商品更新処理 (PUT /items/{id})
 func (c *ItemCommandController) HandleItemUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

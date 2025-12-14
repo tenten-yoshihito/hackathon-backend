@@ -18,7 +18,6 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// UserCreateRequest struct and method used to create user
 type UserCreateRequest struct {
 	Name    string `json:"name"`
 	Age     int    `json:"age"`
@@ -26,12 +25,10 @@ type UserCreateRequest struct {
 	IconURL string `json:"icon_url"`
 }
 
-// IsValid バリデーション
 func (req *UserCreateRequest) IsValid() bool {
 	return req.Name != "" && len(req.Name) <= MaxNameLen
 }
 
-// UserUpdateRequest struct for updating user profile
 type UserUpdateRequest struct {
 	Name    string `json:"name"`
 	Age     int    `json:"age"`
@@ -39,12 +36,11 @@ type UserUpdateRequest struct {
 	IconURL string `json:"icon_url"`
 }
 
-// IsValid バリデーション
 func (req *UserUpdateRequest) IsValid() bool {
 	if req.Name == "" || len(req.Name) > MaxNameLen {
 		return false
 	}
-	// 年齢は-1（未設定）、0（非公開）、または1-150の範囲
+	// 年齢は-1（未設定）or 1-150の範囲
 	if req.Age < -1 || req.Age > 150 {
 		return false
 	}
