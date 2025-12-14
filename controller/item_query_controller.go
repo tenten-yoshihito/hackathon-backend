@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-// ItemQueryController handles read-only item operations
+// ItemQueryController : 商品情報を取得するコントローラ
 type ItemQueryController struct {
 	list          usecase.ItemList
 	myItemsList   usecase.MyItemsList
@@ -16,7 +16,6 @@ type ItemQueryController struct {
 	get           usecase.ItemGet
 }
 
-// NewItemQueryController creates a new ItemQueryController
 func NewItemQueryController(
 	list usecase.ItemList,
 	myItemsList usecase.MyItemsList,
@@ -31,7 +30,7 @@ func NewItemQueryController(
 	}
 }
 
-// HandleItemList retrieves all items or searches by keyword (GET /items?name=keyword)
+// HandleItemList : 商品一覧を取得する
 func (c *ItemQueryController) HandleItemList(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -57,7 +56,7 @@ func (c *ItemQueryController) HandleItemList(w http.ResponseWriter, r *http.Requ
 	respondJSON(w, http.StatusOK, map[string]interface{}{"items": items})
 }
 
-// HandleItemDetail retrieves item details (GET /items/{id})
+// HandleItemDetail : 商品の詳細を取得する
 func (c *ItemQueryController) HandleItemDetail(w http.ResponseWriter, r *http.Request) {
 	itemID := r.PathValue("id")
 
@@ -71,7 +70,7 @@ func (c *ItemQueryController) HandleItemDetail(w http.ResponseWriter, r *http.Re
 	respondJSON(w, http.StatusOK, item)
 }
 
-// HandleMyItems retrieves the list of items listed by the authenticated user (GET /items/my)
+// HandleMyItems : 自分の出品商品一覧を取得 (GET /items/my)
 func (c *ItemQueryController) HandleMyItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -93,7 +92,7 @@ func (c *ItemQueryController) HandleMyItems(w http.ResponseWriter, r *http.Reque
 	respondJSON(w, http.StatusOK, items)
 }
 
-// HandleUserItems retrieves the list of items listed by a specific user (GET /users/{userId}/items)
+// HandleUserItems : 特定のユーザーの出品商品一覧を取得 (GET /users/{userId}/items)
 func (c *ItemQueryController) HandleUserItems(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

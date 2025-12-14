@@ -2,6 +2,7 @@ package model
 
 import "testing"
 
+// TestUserCreateRequest_IsValid : ユーザー作成リクエストのバリデーションtest
 func TestUserCreateRequest_IsValid(t *testing.T) {
 	testCases := []struct {
 		name string

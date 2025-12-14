@@ -15,7 +15,6 @@ type userGet struct {
 	userDAO dao.UserDAO
 }
 
-// NewUserGet : UserGetの生成
 func NewUserGet(userDAO dao.UserDAO) UserGet {
 	return &userGet{userDAO: userDAO}
 }

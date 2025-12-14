@@ -26,7 +26,7 @@ func NewChatDao(db *sql.DB) ChatDAO {
 	return &chatDao{DB: db}
 }
 
-// チャットルーム作成
+// CreateChatRoom : チャットルーム作成
 func (dao *chatDao) CreateChatRoom(ctx context.Context, room *model.ChatRoom) error {
 	tx, err := dao.DB.BeginTx(ctx, nil)
 	if err != nil {
@@ -50,7 +50,7 @@ func (dao *chatDao) CreateChatRoom(ctx context.Context, room *model.ChatRoom) er
 	return nil
 }
 
-// 既存ルームの取得 (商品IDと購入者IDで検索)
+// GetChatRoom : 既存ルームの取得 (商品IDと購入者IDで検索)
 func (dao *chatDao) GetChatRoom(ctx context.Context, itemID, buyerID string) (*model.ChatRoom, error) {
 	query := `SELECT id, item_id, buyer_id, seller_id, created_at FROM chat_rooms WHERE item_id = ? AND buyer_id = ?`
 	row := dao.DB.QueryRowContext(ctx, query, itemID, buyerID)
@@ -64,7 +64,7 @@ func (dao *chatDao) GetChatRoom(ctx context.Context, itemID, buyerID string) (*m
 	return &room, nil
 }
 
-// ルームIDから取得
+// GetChatRoomByID : ルームIDから取得
 func (dao *chatDao) GetChatRoomByID(ctx context.Context, roomID string) (*model.ChatRoom, error) {
 	query := `SELECT id, item_id, buyer_id, seller_id, created_at FROM chat_rooms WHERE id = ?`
 	row := dao.DB.QueryRowContext(ctx, query, roomID)
@@ -75,7 +75,7 @@ func (dao *chatDao) GetChatRoomByID(ctx context.Context, roomID string) (*model.
 	return &room, nil
 }
 
-// 商品IDからチャットルーム一覧取得]
+// GetChatRoomsByItemID : 商品IDからチャットルーム一覧取得
 func (dao *chatDao) GetChatRoomsByItemID(ctx context.Context, itemID string) ([]model.ChatRoomInfo, error) {
 	query := `
 		SELECT r.id, r.buyer_id, u.name, u.icon_url, r.created_at
@@ -105,7 +105,7 @@ func (dao *chatDao) GetChatRoomsByItemID(ctx context.Context, itemID string) ([]
 	return rooms, nil
 }
 
-//  メッセージ保存 
+// SaveMessage : メッセージ保存 
 func (dao *chatDao) SaveMessage(ctx context.Context, msg *model.Message) error {
 	tx, err := dao.DB.BeginTx(ctx, nil)
 	if err != nil {
@@ -128,7 +128,7 @@ func (dao *chatDao) SaveMessage(ctx context.Context, msg *model.Message) error {
 	}
 	return nil
 }
-// メッセージ一覧取得
+// GetMessages : メッセージ一覧取得
 func (dao *chatDao) GetMessages(ctx context.Context, roomID string) ([]model.Message, error) {
 	query := `SELECT id, chat_room_id, sender_id, content, created_at FROM messages WHERE chat_room_id = ? ORDER BY created_at ASC`
 	rows, err := dao.DB.QueryContext(ctx, query, roomID)

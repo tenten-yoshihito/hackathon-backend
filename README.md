@@ -1,11 +1,11 @@
 # Backend Architecture Documentation
 
-## 📁 プロジェクト構成
+##  プロジェクト構成
 
 ```
 hackathon-backend/
-├── main.go                 # エントリーポイント、DI、ルーティング設定
-├── controller/             # HTTPリクエストハンドラー
+├── main.go                # エントリーポイント、DI、ルーティング設定
+├── controller/            # HTTPリクエストハンドラー
 ├── usecase/               # ビジネスロジック層
 ├── dao/                   # データアクセス層
 ├── model/                 # データモデル定義
@@ -13,7 +13,7 @@ hackathon-backend/
 └── db/                    # データベース接続設定
 ```
 
-## 🏗️ アーキテクチャパターン
+## アーキテクチャパターン
 
 ### レイヤードアーキテクチャ（3層）
 
@@ -28,14 +28,14 @@ Controller → Usecase → DAO → Database
 - **Controller** は **Usecase** に依存
 - **Usecase** は **DAO** に依存
 - **DAO** は **Model** と **Database** に依存
-- 逆方向の依存は禁止（依存性逆転の原則）
+- 逆方向の依存は禁止
 
 ---
 
 ## 📂 ディレクトリ詳細
 
 ### 1. `controller/`
-HTTPリクエストを受け取り、レスポンスを返す層
+HTTPリクエストを受け取り、レスポンスを返す層(url情報もここで取る)
 
 #### ファイル構成
 - `helper.go` - 共通ヘルパー関数（`respondJSON`, `respondError`）
@@ -47,9 +47,9 @@ HTTPリクエストを受け取り、レスポンスを返す層
 
 #### 責務
 - リクエストパラメータの取得
-- バリデーション（基本的なもの）
+- バリデーション（useridなど基本的なもの）
 - Usecaseの呼び出し
-- HTTPレスポンスの生成
+- HTTPレスポンスの生成(respondJson/respondErrorでusecaseからの返り値orエラーを返す)
 
 #### 依存関係
 ```
@@ -65,19 +65,31 @@ Controller
 ビジネスロジックを実装する層
 
 #### ファイル構成
-- `item_list_usecase.go` - 商品一覧・検索
-- `item_get_usecase.go` - 商品詳細取得
-- `item_create_usecase.go` - 商品作成
-- `item_update_usecase.go` - 商品更新
-- `item_purchase_usecase.go` - 商品購入
+- `chat_usecase.go` - チャット機能(チャットルームの作成・取得、メッセージの送信・取得)->責任分離の観点から微妙かも
+
+- `description_generate_usecase.go` - imageURLのバリデーションと商品説明文の生成
+
+- `item_detail_usecase.go` - 商品詳細取得
+- `item_get_usecase.go` - 特定の商品の取得
+- `item_list_usecase.go` - 商品一覧取得(home画面用)
+- `item_purchase_usecase.go` - 商品購入処理(soldにするだけ)
+- `item_register_usecase.go` - 商品登録
+- `item_update_usecase.go` - 商品更新(削除は未実装)
+
 - `like_usecase.go` - いいね機能
-- `user_usecase.go` - ユーザー管理
-- `chat_usecase.go` - チャット機能
+
+- `my_items_list_usecase.go` - 特定のユーザーの出品商品一覧取得(名前はかなり怪しくて別にログインしているユーザー以外のものも取得できる)
+
+- `user_get_usecase.go` - 特定のユーザーの取得
+- `user_items_list_usecase.go` - 特定のユーザーの出品商品一覧取得
+- `user_register_usecase.go` - ユーザー登録
+- `user_search_usecase.go` - ユーザー一覧を取得,カリキュラムの名残なので使用していないが一応残している
+- `user_update_usecase.go` - ユーザー更新(削除は未実装)
+
 
 #### 責務
 - ビジネスルールの実装
 - 入力値の詳細バリデーション
-- トランザクション管理（必要に応じて）
 - DAOの呼び出し
 
 #### 依存関係
@@ -99,8 +111,9 @@ Usecase
 - `chat_dao.go` - チャットデータアクセス
 
 #### 責務
+- dbの接続は依存性の注入の観点からmainで行った。
 - SQLクエリの実行
-- データベーストランザクション管理
+- データベーストランザクション管理(dbのデータの書き換えや挿入を伴う処理に掛けた)
 - 結果のマッピング（DB → Model）
 
 #### 依存関係
@@ -139,30 +152,52 @@ query := `... LIMIT 100`
 
 #### 主要な型
 
-**Item（商品）**
 ```go
-type Item struct {
-    ItemId        string    `json:"id"`
-    UserId        string    `json:"user_id"`
-    Name          string    `json:"name"`
-    Price         int       `json:"price"`
-    Description   string    `json:"description,omitempty"`
-    ImageURLs     []string  `json:"image_urls"`
-    Status        string    `json:"status"`
-    SellerName    string    `json:"seller_name"`
-    SellerIconURL string    `json:"seller_icon_url"`
-    CreatedAt     time.Time `json:"created_at"`
-    UpdatedAt     time.Time `json:"updated_at"`
+type ChatRoom struct {
+	Id        string    `json:"id"`
+	ItemId    string    `json:"item_id"`
+	BuyerId   string    `json:"buyer_id"`
+	SellerId  string    `json:"seller_id"`
+	CreatedAt time.Time `json:"created_at"`
 }
+
+type Message struct {
+	Id         string    `json:"id"`
+	ChatRoomId string    `json:"chat_room_id"`
+	SenderId   string    `json:"sender_id"`
+	Content    string    `json:"content"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+
+type Item struct {
+	ItemId        string    `json:"id"`
+	UserId        string    `json:"user_id"`
+	Name          string    `json:"name"`
+	Price         int       `json:"price"`
+	Description   string    `json:"description,omitempty"`
+	ImageURLs     []string  `json:"image_urls"`
+	Status        string    `json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+	SellerName    string    `json:"seller_name"`
+	SellerIconURL string    `json:"seller_icon_url"`
+}
+
+type User struct {
+	Id        string    `json:"id"`
+	Name      string    `json:"name"`
+	Age       int       `json:"age"`
+	Email     string    `json:"email,omitempty"`
+	Bio       string    `json:"bio,omitempty"`
+	IconURL   string    `json:"icon_url,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 ```
 
-**ステータス定数**
-```go
-const (
-    StatusOnSale = "ON_SALE"
-    StatusSold   = "SOLD"
-)
-```
+
 
 ---
 
@@ -171,8 +206,7 @@ const (
 
 #### ファイル構成
 - `auth.go` - Firebase認証ミドルウェア
-- `cors.go` - CORS設定
-- `logger.go` - ログ出力
+- `cors.go` - CORS設定(デプロイ前に要チェック)
 
 #### 認証フロー
 ```
@@ -189,7 +223,9 @@ Request → AuthMiddleware → Controller
 アプリケーションのエントリーポイント
 
 #### 責務
-1. **依存性注入（DI）**
+1. **DB接続**
+db, err := DBInit()
+2. **依存性注入（DI）**
 ```go
 // DAO初期化
 itemDAO := dao.NewItemDAO(db)
@@ -204,22 +240,20 @@ itemQueryController := controller.NewItemQueryController(itemList, ...)
 likeController := controller.NewLikeController(likeUsecase)
 ```
 
-2. **ルーティング設定**
+3. **ルーティング設定**
 ```go
-// 公開エンドポイント
-e.GET("/items", itemQueryController.HandleItemList)
-e.GET("/items/:id", itemQueryController.HandleItemDetail)
+mux := http.NewServeMux()
+// 公開エンドポイント(関数をそのまま渡す)
+mux.HandleFunc(...)
+// 認証必須エンドポイント(middleware FirebaseAuthMiddlewareを適用して関数を渡す)
+mux.Handle(...)
 
-// 認証必須エンドポイント
-auth := e.Group("")
-auth.Use(middleware.AuthMiddleware(firebaseAuth))
-auth.POST("/items", itemCommandController.HandleItemCreate)
-auth.POST("/items/:id/like", likeController.ToggleLike)
-```
+// CORS設定
+wrappedHandler := middleware.CORSMiddleware(mux)
 
 ---
 
-## 🔄 データフロー例
+##  データフロー例
 
 ### 商品検索のフロー
 
@@ -228,7 +262,7 @@ auth.POST("/items/:id/like", likeController.ToggleLike)
 
 2. Controller (item_query_controller.go)
    ├─ クエリパラメータ取得: keyword
-   └─ Usecase呼び出し: SearchItems(keyword)
+   └─ Usecase呼び出し: Search(keyword)
 
 3. Usecase (item_list_usecase.go)
    ├─ バリデーション: keyword != ""
@@ -260,7 +294,7 @@ auth.POST("/items/:id/like", likeController.ToggleLike)
    └─ Usecase呼び出し: ToggleLike(userID, itemID)
 
 4. Usecase (like_usecase.go)
-   ├─ バリデーション
+   ├─ バリデーション(userIdがあるか)
    └─ DAO呼び出し: ToggleLike(userID, itemID)
 
 5. DAO (like_dao.go)
@@ -271,7 +305,7 @@ auth.POST("/items/:id/like", likeController.ToggleLike)
 
 ---
 
-## 🔐 セキュリティ対策
+## セキュリティ対策
 
 ### 1. 認証・認可
 - Firebase Authentication使用
@@ -288,87 +322,90 @@ auth.POST("/items/:id/like", likeController.ToggleLike)
 
 ---
 
-## 📊 データベーススキーマ
+## データベーススキーマ
 
-### 主要テーブル
+### テーブル一覧
 
 **items（商品）**
 ```sql
-CREATE TABLE items (
-    id VARCHAR(255) PRIMARY KEY,
-    user_id VARCHAR(255) NOT NULL,
-    name VARCHAR(255) NOT NULL,
-    price INT NOT NULL,
-    description TEXT,
-    status VARCHAR(50) DEFAULT 'ON_SALE',
-    buyer_id VARCHAR(255),
-    purchased_at DATETIME,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
-    INDEX idx_status_created (status, created_at DESC),
-    INDEX idx_user_id (user_id)
-);
+       Table: chat_rooms
+Create Table: CREATE TABLE `chat_rooms` (
+  `id` varchar(26) NOT NULL,
+  `item_id` varchar(26) NOT NULL,
+  `buyer_id` varchar(255) NOT NULL,
+  `seller_id` varchar(255) NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_chat` (`item_id`,`buyer_id`,`seller_id`),
+  CONSTRAINT `chat_rooms_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+       Table: item_images
+Create Table: CREATE TABLE `item_images` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `item_id` varchar(255) NOT NULL,
+  `image_url` text NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `item_id` (`item_id`),
+  CONSTRAINT `item_images_ibfk_1` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=34 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+       Table: items
+Create Table: CREATE TABLE `items` (
+  `id` varchar(255) NOT NULL,
+  `user_id` varchar(255) NOT NULL,
+  `name` varchar(100) NOT NULL,
+  `description` text,
+  `price` int NOT NULL,
+  `status` varchar(20) NOT NULL DEFAULT 'ON_SALE',
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `buyer_id` varchar(255) DEFAULT NULL,
+  `purchased_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `items_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+       Table: likes
+Create Table: CREATE TABLE `likes` (
+  `user_id` varchar(255) NOT NULL,
+  `item_id` varchar(255) NOT NULL,
+  `created_at` datetime NOT NULL,
+  PRIMARY KEY (`user_id`,`item_id`),
+  KEY `item_id` (`item_id`),
+  CONSTRAINT `likes_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
+  CONSTRAINT `likes_ibfk_2` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+       Table: messages
+Create Table: CREATE TABLE `messages` (
+  `id` varchar(26) NOT NULL,
+  `chat_room_id` varchar(26) NOT NULL,
+  `sender_id` varchar(255) NOT NULL,
+  `content` text NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `chat_room_id` (`chat_room_id`),
+  CONSTRAINT `messages_ibfk_1` FOREIGN KEY (`chat_room_id`) REFERENCES `chat_rooms` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+
+       Table: users
+Create Table: CREATE TABLE `users` (
+  `id` varchar(255) NOT NULL,
+  `name` varchar(50) NOT NULL,
+  `age` int DEFAULT NULL,
+  `email` varchar(255) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  `bio` text,
+  `icon_url` text,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ```
 
-**likes（いいね）**
-```sql
-CREATE TABLE likes (
-    user_id VARCHAR(255) NOT NULL,
-    item_id VARCHAR(255) NOT NULL,
-    created_at DATETIME NOT NULL,
-    PRIMARY KEY (user_id, item_id),
-    INDEX idx_user_id (user_id),
-    INDEX idx_item_id (item_id)
-);
-```
-
-**users（ユーザー）**
-```sql
-CREATE TABLE users (
-    id VARCHAR(255) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    icon_url VARCHAR(500),
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL
-);
-```
-
----
-
-## 🚀 起動方法
-
-```bash
-# 依存関係インストール
-go mod download
-
-# 環境変数設定
-export FIREBASE_CREDENTIALS_PATH=/path/to/serviceAccountKey.json
-export DB_USER=root
-export DB_PASSWORD=password
-export DB_HOST=127.0.0.1
-export DB_PORT=3306
-export DB_NAME=uttc
-
-# 起動
-go run main.go
-```
-
----
-
-## 🧪 テスト
-
-```bash
-# 全テスト実行
-go test ./...
-
-# カバレッジ確認
-go test -cover ./...
-```
-
----
-
-## 📝 コーディング規約
+## コーディング規約
 
 ### 命名規則
 - **パッケージ**: 小文字、単数形（`controller`, `usecase`, `dao`）

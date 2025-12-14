@@ -31,7 +31,7 @@ func NewUserController(
 	}
 }
 
-// ユーザー登録 (POST /register)
+// HandleProfileRegister : ユーザー登録 (POST /register)
 func (c *UserController) HandleProfileRegister(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -61,7 +61,7 @@ func (c *UserController) HandleProfileRegister(w http.ResponseWriter, r *http.Re
 	respondJSON(w, http.StatusCreated, map[string]string{"id": uid})
 }
 
-// ユーザー検索 (GET /user)
+// HandleSearchUser : ユーザー検索 (GET /user)
 func (c *UserController) HandleSearchUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	users, err := c.search.Search(ctx)
@@ -73,7 +73,7 @@ func (c *UserController) HandleSearchUser(w http.ResponseWriter, r *http.Request
 	respondJSON(w, http.StatusOK, users)
 }
 
-// ユーザー取得 (GET /users/{id})
+// HandleGetUser : ユーザー取得 (GET /users/{id})
 func (c *UserController) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID := r.PathValue("id")
@@ -92,7 +92,7 @@ func (c *UserController) HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, user)
 }
 
-// ユーザー情報更新 (PUT /users/me)
+// HandleUpdateUser : ユーザー情報更新 (PUT /users/me)
 func (c *UserController) HandleUpdateUser(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

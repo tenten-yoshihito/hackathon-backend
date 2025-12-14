@@ -11,7 +11,8 @@ import (
 //	共通ヘルパー関数
 //
 // ---------------------------------------------------------
-// respondJSON : JSONレスポンスを返す共通関数
+
+// respondJSON : JSONレスポンスを返す共通関数(ここでは任意のinterface{}を容認)
 func respondJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

@@ -17,14 +17,12 @@ type geminiService struct {
 	apiKey string
 }
 
-// NewGeminiService creates a new Gemini service instance using Google AI Studio API
 func NewGeminiService(apiKey string) GeminiService {
 	return &geminiService{
 		apiKey: apiKey,
 	}
 }
 
-// GenerateDescriptionFromImageURL generates a product description from an image URL
 func (s *geminiService) GenerateDescriptionFromImageURL(ctx context.Context, imageURL string) (string, error) {
 	// Download image from URL
 	resp, err := http.Get(imageURL)

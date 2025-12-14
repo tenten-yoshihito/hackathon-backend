@@ -15,12 +15,10 @@ type itemUpdate struct {
 	itemDAO dao.ItemDAO
 }
 
-// NewItemUpdate creates a new ItemUpdate usecase
 func NewItemUpdate(itemDAO dao.ItemDAO) ItemUpdate {
 	return &itemUpdate{itemDAO: itemDAO}
 }
 
-// UpdateItem updates an existing item
 func (u *itemUpdate) UpdateItem(ctx context.Context, req *model.ItemUpdateRequest) error {
 	if !req.IsValid() {
 		return fmt.Errorf("invalid request")

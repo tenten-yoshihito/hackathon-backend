@@ -14,12 +14,12 @@ type descriptionGenerate struct {
 	geminiService service.GeminiService
 }
 
-// NewDescriptionGenerate creates a new DescriptionGenerate usecase
+
 func NewDescriptionGenerate(geminiService service.GeminiService) DescriptionGenerate {
 	return &descriptionGenerate{geminiService: geminiService}
 }
 
-// GenerateFromImageURL generates a product description from an image URL
+// GenerateFromImageURL : service層のGeminiServiceを用いて商品説明を生成する 
 func (u *descriptionGenerate) GenerateFromImageURL(ctx context.Context, imageURL string) (string, error) {
 	if imageURL == "" {
 		return "", fmt.Errorf("image URL is required")

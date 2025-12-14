@@ -7,19 +7,17 @@ import (
 	"net/http"
 )
 
-// ItemAIController handles AI-powered item operations
 type ItemAIController struct {
 	descriptionGenerate usecase.DescriptionGenerate
 }
 
-// NewItemAIController creates a new ItemAIController
 func NewItemAIController(descriptionGenerate usecase.DescriptionGenerate) *ItemAIController {
 	return &ItemAIController{
 		descriptionGenerate: descriptionGenerate,
 	}
 }
 
-// HandleGenerateDescription generates item description using AI (POST /items/generate-description)
+// HandleGenerateDescription : 商品説明をAIで生成 (POST /items/generate-description)
 func (c *ItemAIController) HandleGenerateDescription(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
