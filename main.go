@@ -125,6 +125,11 @@ func main() {
 	likeDAO := dao.NewLikeDao(db)
 	likeUsecase := usecase.NewLikeUsecase(likeDAO)
 	likeController := controller.NewLikeController(likeUsecase)
+
+	// --- recommend ---
+	recommendUsecase := usecase.NewRecommendUsecase(itemDAO, likeDAO)
+	recommendController := controller.NewRecommendController(recommendUsecase)
+
 	// --- 実際の処理 ---
 
 	mux := http.NewServeMux()
@@ -139,6 +144,8 @@ func main() {
 	mux.HandleFunc("GET /items/{id}", itemQueryController.HandleItemDetail)
 	mux.Handle("GET /items/my", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemQueryController.HandleMyItems)))
 	mux.HandleFunc("GET /users/{userId}/items", itemQueryController.HandleUserItems)
+	mux.HandleFunc("GET /items/{id}/recommend", recommendController.HandleGetRecommendations)
+	mux.Handle("GET /items/recommend", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(recommendController.HandleGetPersonalizedRecommendations)))
 
 	// 商品出品 (POST /items)
 	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemCommandController.HandleItemRegister)))

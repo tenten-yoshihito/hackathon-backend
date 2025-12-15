@@ -21,6 +21,7 @@ type ItemDAO interface {
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
 	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error
+	GetAllItemEmbeddings(ctx context.Context) (map[string][]float32, error)
 }
 
 type itemDao struct {
@@ -412,4 +413,41 @@ func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string
 	}
 
 	return nil
+}
+
+// GetAllItemEmbeddings : 販売中の全商品のIDとベクトルを取得
+func (dao *itemDao) GetAllItemEmbeddings(ctx context.Context) (map[string][]float32, error) {
+	// 販売中 (ON_SALE) の商品のみ対象
+	query := `SELECT id, embedding FROM items WHERE status = 'ON_SALE' AND embedding IS NOT NULL`
+
+	rows, err := dao.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("fail: query all embeddings: %w", err)
+	}
+	defer rows.Close()
+
+	// ID -> ベクトル のマップを作成
+	result := make(map[string][]float32)
+
+	for rows.Next() {
+		var id string
+		var embeddingJSON []byte // JSON文字列として取得
+
+		if err := rows.Scan(&id, &embeddingJSON); err != nil {
+			return nil, fmt.Errorf("fail: scan embedding: %w", err)
+		}
+
+		// JSON文字列を []float32 に変換
+		var embedding []float32
+		if len(embeddingJSON) > 0 {
+			if err := json.Unmarshal(embeddingJSON, &embedding); err != nil {
+				// 1つのパースエラーで全体を止めない（ログだけ出す）
+				fmt.Printf("Warning: failed to unmarshal embedding for item %s: %v\n", id, err)
+				continue
+			}
+			result[id] = embedding
+		}
+	}
+
+	return result, nil
 }
