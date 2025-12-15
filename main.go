@@ -102,13 +102,13 @@ func main() {
 
 	// --- item ---
 	itemDAO := dao.NewItemDao(db)
-	itemRegister := usecase.NewItemRegister(itemDAO)
+	itemRegister := usecase.NewItemRegister(itemDAO, geminiService)
 	itemList := usecase.NewItemList(itemDAO)
 	myItemsList := usecase.NewMyItemsList(itemDAO)
 	userItemsList := usecase.NewUserItemsList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
 	itemPurchase := usecase.NewItemPurchase(itemDAO)
-	itemUpdate := usecase.NewItemUpdate(itemDAO)
+	itemUpdate := usecase.NewItemUpdate(itemDAO, geminiService)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
 
 	// Item controllers (refactored into 3 specialized controllers)

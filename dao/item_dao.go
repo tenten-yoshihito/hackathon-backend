@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"db/model"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -19,7 +20,7 @@ type ItemDAO interface {
 	GetUserItems(ctx context.Context, userID string) ([]model.ItemSimple, error)
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
-	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string) error
+	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error
 }
 
 type itemDao struct {
@@ -43,10 +44,18 @@ func (dao *itemDao) ItemInsert(ctx context.Context, item *model.Item) error {
 			log.Printf("fail:tx.Rollback,%v\n", err)
 		}
 	}()
+	var embeddingJSON interface{} = nil
+	if len(item.Embedding) > 0 {
+		b, err := json.Marshal(item.Embedding)
+		if err == nil {
+			embeddingJSON = string(b)
+		}
+	}
+
 	now := time.Now()
 	queryItem := `INSERT INTO items 
-                  (id, user_id, name, description, price, created_at, updated_at) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`
+                  (id, user_id, name, description, price, embedding, created_at, updated_at) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = tx.ExecContext(ctx, queryItem,
 		item.ItemId,
@@ -54,6 +63,7 @@ func (dao *itemDao) ItemInsert(ctx context.Context, item *model.Item) error {
 		item.Name,
 		item.Description,
 		item.Price,
+		embeddingJSON,
 		now,
 		now)
 	if err != nil {
@@ -340,7 +350,7 @@ func (dao *itemDao) PurchaseItem(ctx context.Context, itemID string, buyerID str
 }
 
 // UpdateItem : 商品情報を更新
-func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string) error {
+func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error {
 	tx, err := dao.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -374,9 +384,16 @@ func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string
 	}
 
 	// 商品情報を更新
+	var embeddingJSON interface{} = nil
+	if len(embedding) > 0 {
+		b, err := json.Marshal(embedding)
+		if err == nil {
+			embeddingJSON = string(b)
+		}
+	}
 	now := time.Now()
-	updateQuery := `UPDATE items SET name = ?, price = ?, description = ?, updated_at = ? WHERE id = ?`
-	result, err := tx.ExecContext(ctx, updateQuery, name, price, description, now, itemID)
+	updateQuery := `UPDATE items SET name = ?, price = ?, description = ?, embedding = ?, updated_at = ? WHERE id = ?`
+	result, err := tx.ExecContext(ctx, updateQuery, name, price, description, embeddingJSON, now, itemID)
 	if err != nil {
 		return fmt.Errorf("failed to update item: %w", err)
 	}
