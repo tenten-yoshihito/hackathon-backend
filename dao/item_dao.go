@@ -13,8 +13,8 @@ import (
 
 type ItemDAO interface {
 	ItemInsert(ctx context.Context, item *model.Item) error
-	GetItemList(ctx context.Context) ([]model.ItemSimple, error)
-	SearchItems(ctx context.Context, keyword string) ([]model.ItemSimple, error)
+	GetItemList(ctx context.Context, limit int, offset int) ([]model.ItemSimple, error)
+	SearchItems(ctx context.Context, keyword string, limit int, offset int) ([]model.ItemSimple, error)
 	GetMyItems(ctx context.Context, sellerID string) ([]model.ItemSimple, error)
 	GetUserItems(ctx context.Context, userID string) ([]model.ItemSimple, error)
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
@@ -78,7 +78,7 @@ func (dao *itemDao) ItemInsert(ctx context.Context, item *model.Item) error {
 }
 
 // GetItemList : 商品一覧を取得
-func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error) {
+func (dao *itemDao) GetItemList(ctx context.Context, limit int, offset int) ([]model.ItemSimple, error) {
 
 	query := `
 		SELECT 
@@ -88,9 +88,10 @@ func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 			COALESCE((SELECT image_url FROM item_images WHERE item_id = i.id LIMIT 1), '') as image_url,
 			i.status
 		FROM items i
-		ORDER BY i.created_at DESC`
+		ORDER BY i.created_at DESC
+		LIMIT ? OFFSET ?`
 
-	rows, err := dao.DB.QueryContext(ctx, query)
+	rows, err := dao.DB.QueryContext(ctx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("fail:dao.DB.Query:%w", err)
 	}
@@ -115,7 +116,7 @@ func (dao *itemDao) GetItemList(ctx context.Context) ([]model.ItemSimple, error)
 }
 
 // SearchItems : キーワードで商品を検索
-func (dao *itemDao) SearchItems(ctx context.Context, keyword string) ([]model.ItemSimple, error) {
+func (dao *itemDao) SearchItems(ctx context.Context, keyword string, limit int, offset int) ([]model.ItemSimple, error) {
 	query := `
 		SELECT 
 			i.id, 
@@ -126,14 +127,14 @@ func (dao *itemDao) SearchItems(ctx context.Context, keyword string) ([]model.It
 		FROM items i
 		WHERE i.name LIKE ?
 		ORDER BY i.created_at DESC
-		LIMIT 100`
+		LIMIT ? OFFSET ?`
 
 	// LIKE特殊文字をエスケープ
 	escapedKeyword := escapeLikeString(keyword)
 	// キーワードの前後に % を付けて部分一致検索
 	searchKeyword := "%" + escapedKeyword + "%"
 
-	rows, err := dao.DB.QueryContext(ctx, query, searchKeyword)
+	rows, err := dao.DB.QueryContext(ctx, query, searchKeyword, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("fail:dao.DB.Query:%w", err)
 	}
