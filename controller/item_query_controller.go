@@ -6,6 +6,7 @@ import (
 	"db/usecase"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 // ItemQueryController : 商品情報を取得するコントローラ
@@ -37,15 +38,33 @@ func (c *ItemQueryController) HandleItemList(w http.ResponseWriter, r *http.Requ
 	// Check for search keyword in query parameter
 	keyword := r.URL.Query().Get("name")
 
+	// Parse limit and offset
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 20
+	offset := 0
+
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+	if offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
 	var items []model.ItemSimple
 	var err error
 
 	if keyword != "" {
 		// Search items by keyword
-		items, err = c.list.SearchItems(ctx, keyword)
+		items, err = c.list.SearchItems(ctx, keyword, limit, offset)
 	} else {
 		// Get all items
-		items, err = c.list.GetItems(ctx)
+		items, err = c.list.GetItems(ctx, limit, offset)
 	}
 
 	if err != nil {
