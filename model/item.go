@@ -20,7 +20,7 @@ type Item struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 	SellerName    string    `json:"seller_name"`
 	SellerIconURL string    `json:"seller_icon_url"`
-	Embedding []float32 `json:"-"`
+	Embedding     []float32 `json:"-"`
 }
 
 type ItemCreateRequest struct {
@@ -31,11 +31,12 @@ type ItemCreateRequest struct {
 }
 
 type ItemUpdateRequest struct {
-	ItemID      string `json:"item_id"`
-	UserID      string `json:"user_id"`
-	Name        string `json:"name"`
-	Price       int    `json:"price"`
-	Description string `json:"description,omitempty"`
+	ItemID      string   `json:"item_id"`
+	UserID      string   `json:"user_id"`
+	Name        string   `json:"name"`
+	Price       int      `json:"price"`
+	Description string   `json:"description,omitempty"`
+	ImageURLs   []string `json:"image_urls"`
 }
 
 type ItemSimple struct {

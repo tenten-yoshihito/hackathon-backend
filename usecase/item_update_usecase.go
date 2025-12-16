@@ -31,7 +31,7 @@ func (u *itemUpdate) UpdateItem(ctx context.Context, req *model.ItemUpdateReques
 	if err != nil {
 		fmt.Printf("Warning: failed to update embedding: %v\n", err)
 	}
-	err = u.itemDAO.UpdateItem(ctx, req.ItemID, req.UserID, req.Name, req.Price, req.Description, embedding)
+	err = u.itemDAO.UpdateItem(ctx, req.ItemID, req.UserID, req.Name, req.Price, req.Description, req.ImageURLs, embedding)
 	if err != nil {
 		return fmt.Errorf("failed to update item: %w", err)
 	}

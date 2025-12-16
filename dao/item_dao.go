@@ -21,7 +21,7 @@ type ItemDAO interface {
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
 	GetItemsByIDs(ctx context.Context, itemIDs []string) ([]model.ItemSimple, error)
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
-	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error
+	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, imageURLs []string, embedding []float32) error
 	GetAllItemEmbeddings(ctx context.Context) (map[string][]float32, error)
 	GetItemEmbedding(ctx context.Context, itemID string) ([]float32, error)
 }
@@ -411,7 +411,7 @@ func (dao *itemDao) PurchaseItem(ctx context.Context, itemID string, buyerID str
 }
 
 // UpdateItem : 商品情報を更新
-func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error {
+func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, imageURLs []string, embedding []float32) error {
 	tx, err := dao.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -466,6 +466,22 @@ func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string
 
 	if rowsAffected == 0 {
 		return fmt.Errorf("item not found")
+	}
+
+	// 既存の画像を削除
+	deleteImagesQuery := `DELETE FROM item_images WHERE item_id = ?`
+	_, err = tx.ExecContext(ctx, deleteImagesQuery, itemID)
+	if err != nil {
+		return fmt.Errorf("failed to delete old images: %w", err)
+	}
+
+	// 新しい画像を挿入
+	insertImageQuery := `INSERT INTO item_images (item_id, image_url, created_at) VALUES (?, ?, ?)`
+	for _, imgURL := range imageURLs {
+		_, err := tx.ExecContext(ctx, insertImageQuery, itemID, imgURL, now)
+		if err != nil {
+			return fmt.Errorf("failed to insert image: %w", err)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
