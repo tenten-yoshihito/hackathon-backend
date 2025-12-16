@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"db/cache"
 	"db/controller"
 	"db/dao"
 	"db/middleware"
@@ -102,13 +103,13 @@ func main() {
 
 	// --- item ---
 	itemDAO := dao.NewItemDao(db)
-	itemRegister := usecase.NewItemRegister(itemDAO)
+	itemRegister := usecase.NewItemRegister(itemDAO, geminiService)
 	itemList := usecase.NewItemList(itemDAO)
 	myItemsList := usecase.NewMyItemsList(itemDAO)
 	userItemsList := usecase.NewUserItemsList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
 	itemPurchase := usecase.NewItemPurchase(itemDAO)
-	itemUpdate := usecase.NewItemUpdate(itemDAO)
+	itemUpdate := usecase.NewItemUpdate(itemDAO, geminiService)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
 
 	// Item controllers (refactored into 3 specialized controllers)
@@ -125,6 +126,14 @@ func main() {
 	likeDAO := dao.NewLikeDao(db)
 	likeUsecase := usecase.NewLikeUsecase(likeDAO)
 	likeController := controller.NewLikeController(likeUsecase)
+
+	// --- embedding cache (インメモリキャッシュで高速化) ---
+	embeddingCache := cache.NewEmbeddingCache(itemDAO)
+
+	// --- recommend ---
+	recommendUsecase := usecase.NewRecommendUsecase(itemDAO, likeDAO, embeddingCache)
+	recommendController := controller.NewRecommendController(recommendUsecase)
+
 	// --- 実際の処理 ---
 
 	mux := http.NewServeMux()
@@ -139,6 +148,8 @@ func main() {
 	mux.HandleFunc("GET /items/{id}", itemQueryController.HandleItemDetail)
 	mux.Handle("GET /items/my", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemQueryController.HandleMyItems)))
 	mux.HandleFunc("GET /users/{userId}/items", itemQueryController.HandleUserItems)
+	mux.HandleFunc("GET /items/{id}/recommend", recommendController.HandleGetRecommendations)
+	mux.Handle("GET /items/recommend", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(recommendController.HandleGetPersonalizedRecommendations)))
 
 	// 商品出品 (POST /items)
 	mux.Handle("POST /items", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(itemCommandController.HandleItemRegister)))

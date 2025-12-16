@@ -11,6 +11,7 @@ import (
 
 type GeminiService interface {
 	GenerateDescriptionFromImageURL(ctx context.Context, imageURL string) (string, error)
+	GenerateEmbedding(ctx context.Context, text string) ([]float32, error)
 }
 
 type geminiService struct {
@@ -63,7 +64,7 @@ func (s *geminiService) GenerateDescriptionFromImageURL(ctx context.Context, ima
 				},
 			},
 		},
-		nil, 
+		nil,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate content: %w", err)
@@ -87,4 +88,44 @@ func (s *geminiService) GenerateDescriptionFromImageURL(ctx context.Context, ima
 	}
 
 	return text, nil
+}
+
+func (s *geminiService) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
+	// テキストが長すぎる場合に切り詰める（Gemini APIの制限回避＆エラー防止）
+	// 日本語のトークン数を考慮し、安全を見て1000文字程度でカット
+	const maxTextLength = 1000
+	if len([]rune(text)) > maxTextLength {
+		text = string([]rune(text)[:maxTextLength])
+	}
+
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  s.apiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
+	}
+
+	// EmbedContent を呼び出す
+	// モデル名は "models/text-embedding-004" を指定
+	resp, err := client.Models.EmbedContent(ctx, "models/text-embedding-004",
+		[]*genai.Content{
+			{
+				Parts: []*genai.Part{
+					genai.NewPartFromText(text),
+				},
+			},
+		},
+		nil,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate embedding: %w", err)
+	}
+
+	// レスポンスからベクトルデータを取得
+	if resp == nil || len(resp.Embeddings) == 0 || len(resp.Embeddings[0].Values) == 0 {
+		return nil, fmt.Errorf("no embedding generated")
+	}
+
+	return resp.Embeddings[0].Values, nil
 }

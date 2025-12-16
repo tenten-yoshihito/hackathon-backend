@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"db/model"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -18,8 +19,11 @@ type ItemDAO interface {
 	GetMyItems(ctx context.Context, sellerID string) ([]model.ItemSimple, error)
 	GetUserItems(ctx context.Context, userID string) ([]model.ItemSimple, error)
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
+	GetItemsByIDs(ctx context.Context, itemIDs []string) ([]model.ItemSimple, error)
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
-	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string) error
+	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error
+	GetAllItemEmbeddings(ctx context.Context) (map[string][]float32, error)
+	GetItemEmbedding(ctx context.Context, itemID string) ([]float32, error)
 }
 
 type itemDao struct {
@@ -43,10 +47,18 @@ func (dao *itemDao) ItemInsert(ctx context.Context, item *model.Item) error {
 			log.Printf("fail:tx.Rollback,%v\n", err)
 		}
 	}()
+	var embeddingJSON interface{} = nil
+	if len(item.Embedding) > 0 {
+		b, err := json.Marshal(item.Embedding)
+		if err == nil {
+			embeddingJSON = string(b)
+		}
+	}
+
 	now := time.Now()
 	queryItem := `INSERT INTO items 
-                  (id, user_id, name, description, price, created_at, updated_at) 
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`
+                  (id, user_id, name, description, price, embedding, created_at, updated_at) 
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
 	_, err = tx.ExecContext(ctx, queryItem,
 		item.ItemId,
@@ -54,6 +66,7 @@ func (dao *itemDao) ItemInsert(ctx context.Context, item *model.Item) error {
 		item.Name,
 		item.Description,
 		item.Price,
+		embeddingJSON,
 		now,
 		now)
 	if err != nil {
@@ -302,6 +315,64 @@ func (dao *itemDao) GetItem(ctx context.Context, itemID string) (*model.Item, er
 	return &item, nil
 }
 
+// GetItemsByIDs : 複数の商品IDから商品情報を一括取得（パフォーマンス最適化）
+func (dao *itemDao) GetItemsByIDs(ctx context.Context, itemIDs []string) ([]model.ItemSimple, error) {
+	if len(itemIDs) == 0 {
+		return []model.ItemSimple{}, nil
+	}
+
+	// IDのプレースホルダーを生成 (?, ?, ?, ...)
+	placeholders := make([]string, len(itemIDs))
+	args := make([]interface{}, len(itemIDs))
+	for i, id := range itemIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT 
+			i.id, 
+			i.name, 
+			i.price, 
+			i.status,
+			COALESCE(MIN(img.image_url), '') AS image_url
+		FROM items i
+		LEFT JOIN item_images img ON i.id = img.item_id
+		WHERE i.id IN (%s)
+		GROUP BY i.id, i.name, i.price, i.status
+	`, strings.Join(placeholders, ","))
+
+	rows, err := dao.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fail:db.Query:%w", err)
+	}
+	defer rows.Close()
+
+	// IDでマッピングして元の順序を保持
+	itemMap := make(map[string]model.ItemSimple)
+	for rows.Next() {
+		var item model.ItemSimple
+		if err := rows.Scan(&item.ItemId, &item.Name, &item.Price, &item.Status, &item.ImageURL); err != nil {
+			return nil, fmt.Errorf("fail:rows.Scan:%w", err)
+		}
+		itemMap[item.ItemId] = item
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	// 元のitemIDsの順序で結果を返す
+	results := make([]model.ItemSimple, 0, len(itemIDs))
+	for _, id := range itemIDs {
+		if item, ok := itemMap[id]; ok {
+			results = append(results, item)
+		}
+	}
+
+	return results, nil
+}
+
 // PurchaseItem : 指定されたitemIDの商品を購入済みにする
 func (dao *itemDao) PurchaseItem(ctx context.Context, itemID string, buyerID string) error {
 
@@ -340,7 +411,7 @@ func (dao *itemDao) PurchaseItem(ctx context.Context, itemID string, buyerID str
 }
 
 // UpdateItem : 商品情報を更新
-func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string) error {
+func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error {
 	tx, err := dao.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -374,9 +445,16 @@ func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string
 	}
 
 	// 商品情報を更新
+	var embeddingJSON interface{} = nil
+	if len(embedding) > 0 {
+		b, err := json.Marshal(embedding)
+		if err == nil {
+			embeddingJSON = string(b)
+		}
+	}
 	now := time.Now()
-	updateQuery := `UPDATE items SET name = ?, price = ?, description = ?, updated_at = ? WHERE id = ?`
-	result, err := tx.ExecContext(ctx, updateQuery, name, price, description, now, itemID)
+	updateQuery := `UPDATE items SET name = ?, price = ?, description = ?, embedding = ?, updated_at = ? WHERE id = ?`
+	result, err := tx.ExecContext(ctx, updateQuery, name, price, description, embeddingJSON, now, itemID)
 	if err != nil {
 		return fmt.Errorf("failed to update item: %w", err)
 	}
@@ -395,4 +473,66 @@ func (dao *itemDao) UpdateItem(ctx context.Context, itemID string, userID string
 	}
 
 	return nil
+}
+
+// GetAllItemEmbeddings : 販売中の全商品のIDとベクトルを取得
+func (dao *itemDao) GetAllItemEmbeddings(ctx context.Context) (map[string][]float32, error) {
+	// 販売中 (ON_SALE) の商品のみ対象
+	query := `SELECT id, embedding FROM items WHERE status = 'ON_SALE' AND embedding IS NOT NULL`
+
+	rows, err := dao.DB.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("fail: query all embeddings: %w", err)
+	}
+	defer rows.Close()
+
+	// ID -> ベクトル のマップを作成
+	result := make(map[string][]float32)
+
+	for rows.Next() {
+		var id string
+		var embeddingJSON []byte // JSON文字列として取得
+
+		if err := rows.Scan(&id, &embeddingJSON); err != nil {
+			return nil, fmt.Errorf("fail: scan embedding: %w", err)
+		}
+
+		// JSON文字列を []float32 に変換
+		var embedding []float32
+		if len(embeddingJSON) > 0 {
+			if err := json.Unmarshal(embeddingJSON, &embedding); err != nil {
+				// 1つのパースエラーで全体を止めない（ログだけ出す）
+				fmt.Printf("Warning: failed to unmarshal embedding for item %s: %v\n", id, err)
+				continue
+			}
+			result[id] = embedding
+		}
+	}
+
+	return result, nil
+}
+
+// GetItemEmbedding : 指定された商品IDのベクトルを取得（SOLD商品対応用）
+func (dao *itemDao) GetItemEmbedding(ctx context.Context, itemID string) ([]float32, error) {
+	query := `SELECT embedding FROM items WHERE id = ?`
+
+	var embeddingJSON []byte
+	err := dao.DB.QueryRowContext(ctx, query, itemID).Scan(&embeddingJSON)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // Not found
+		}
+		return nil, fmt.Errorf("fail: scan embedding: %w", err)
+	}
+
+	if len(embeddingJSON) == 0 {
+		return nil, nil // No embedding data
+	}
+
+	var embedding []float32
+	if err := json.Unmarshal(embeddingJSON, &embedding); err != nil {
+		return nil, fmt.Errorf("fail: unmarshal embedding: %w", err)
+	}
+
+	return embedding, nil
 }

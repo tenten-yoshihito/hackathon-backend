@@ -20,6 +20,7 @@ type Item struct {
 	UpdatedAt     time.Time `json:"updated_at"`
 	SellerName    string    `json:"seller_name"`
 	SellerIconURL string    `json:"seller_icon_url"`
+	Embedding []float32 `json:"-"`
 }
 
 type ItemCreateRequest struct {
