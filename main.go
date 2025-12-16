@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"db/cache"
 	"db/controller"
 	"db/dao"
 	"db/middleware"
@@ -126,8 +127,11 @@ func main() {
 	likeUsecase := usecase.NewLikeUsecase(likeDAO)
 	likeController := controller.NewLikeController(likeUsecase)
 
+	// --- embedding cache (インメモリキャッシュで高速化) ---
+	embeddingCache := cache.NewEmbeddingCache(itemDAO)
+
 	// --- recommend ---
-	recommendUsecase := usecase.NewRecommendUsecase(itemDAO, likeDAO)
+	recommendUsecase := usecase.NewRecommendUsecase(itemDAO, likeDAO, embeddingCache)
 	recommendController := controller.NewRecommendController(recommendUsecase)
 
 	// --- 実際の処理 ---

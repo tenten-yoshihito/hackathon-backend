@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"db/cache"
 	"db/dao"
 	"db/model"
 	"fmt"
@@ -15,20 +16,23 @@ type RecommendUsecase interface {
 }
 
 type recommendUsecase struct {
-	itemDAO dao.ItemDAO
-	likeDAO dao.LikeDAO
+	itemDAO        dao.ItemDAO
+	likeDAO        dao.LikeDAO
+	embeddingCache *cache.EmbeddingCache
 }
 
-func NewRecommendUsecase(itemDAO dao.ItemDAO, likeDAO dao.LikeDAO) RecommendUsecase {
-	return &recommendUsecase{itemDAO: itemDAO, likeDAO: likeDAO}
+func NewRecommendUsecase(itemDAO dao.ItemDAO, likeDAO dao.LikeDAO, embeddingCache *cache.EmbeddingCache) RecommendUsecase {
+	return &recommendUsecase{
+		itemDAO:        itemDAO,
+		likeDAO:        likeDAO,
+		embeddingCache: embeddingCache,
+	}
 }
 
 // GetSimilarItems : 指定した商品に似ている商品を返す (Item-to-Item)
 func (us *recommendUsecase) GetSimilarItems(ctx context.Context, targetItemID string, limit int) ([]model.ItemSimple, error) {
-	allEmbeddings, err := us.itemDAO.GetAllItemEmbeddings(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch embeddings: %w", err)
-	}
+	// キャッシュから取得（超高速）
+	allEmbeddings := us.embeddingCache.Get()
 
 	targetVector, ok := allEmbeddings[targetItemID]
 	if !ok {
@@ -55,11 +59,8 @@ func (us *recommendUsecase) GetPersonalizedRecommendations(ctx context.Context, 
 		return []model.ItemSimple{}, nil
 	}
 
-	// 2. ベクトル取得
-	allEmbeddings, err := us.itemDAO.GetAllItemEmbeddings(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch embeddings: %w", err)
-	}
+	// 2. ベクトル取得（キャッシュから超高速）
+	allEmbeddings := us.embeddingCache.Get()
 
 	// 3. ユーザーベクトル（好みの平均）を作成
 	var userVector []float32
@@ -127,25 +128,16 @@ func (us *recommendUsecase) calculateRanking(ctx context.Context, targetVec []fl
 		topN = len(scores)
 	}
 
-	var results []model.ItemSimple
+	// Top NのIDを抽出
+	topIDs := make([]string, topN)
 	for i := 0; i < topN; i++ {
-		// N+1問題になるが、件数が少ないのでGetItemをループで回す
-		item, err := us.itemDAO.GetItem(ctx, scores[i].ID)
-		if err != nil {
-			continue
-		}
-		
-		simple := model.ItemSimple{
-			ItemId:   item.ItemId,
-			Name:     item.Name,
-			Price:    item.Price,
-			Status:   item.Status,
-			ImageURL: "",
-		}
-		if len(item.ImageURLs) > 0 {
-			simple.ImageURL = item.ImageURLs[0]
-		}
-		results = append(results, simple)
+		topIDs[i] = scores[i].ID
+	}
+
+	// バルク取得（1回のクエリで全取得）
+	results, err := us.itemDAO.GetItemsByIDs(ctx, topIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get items: %w", err)
 	}
 
 	return results, nil

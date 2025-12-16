@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"db/middleware"
 	"db/usecase"
 	"net/http"
 )
@@ -33,14 +34,14 @@ func (c *RecommendController) HandleGetPersonalizedRecommendations(w http.Respon
 	ctx := r.Context()
 
 	// AuthMiddlewareでセットされたuserIDを取得
-	userID, ok := ctx.Value("user_id").(string)
-	if !ok || userID == "" {
+	userID, err := middleware.GetUserIDFromContext(ctx)
+	if err != nil {
 		respondError(w, http.StatusUnauthorized, "Unauthorized", nil)
 		return
 	}
 
-	// 10件表示
-	items, err := c.recommendUsecase.GetPersonalizedRecommendations(ctx, userID, 20)
+	// 8件表示
+	items, err := c.recommendUsecase.GetPersonalizedRecommendations(ctx, userID, 8)
 	if err != nil {
 		respondError(w, http.StatusInternalServerError, "Failed to get personalized recommendations", err)
 		return

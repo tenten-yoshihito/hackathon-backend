@@ -19,6 +19,7 @@ type ItemDAO interface {
 	GetMyItems(ctx context.Context, sellerID string) ([]model.ItemSimple, error)
 	GetUserItems(ctx context.Context, userID string) ([]model.ItemSimple, error)
 	GetItem(ctx context.Context, itemID string) (*model.Item, error)
+	GetItemsByIDs(ctx context.Context, itemIDs []string) ([]model.ItemSimple, error)
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
 	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error
 	GetAllItemEmbeddings(ctx context.Context) (map[string][]float32, error)
@@ -311,6 +312,64 @@ func (dao *itemDao) GetItem(ctx context.Context, itemID string) (*model.Item, er
 	item.ImageURLs = imageURLs
 
 	return &item, nil
+}
+
+// GetItemsByIDs : 複数の商品IDから商品情報を一括取得（パフォーマンス最適化）
+func (dao *itemDao) GetItemsByIDs(ctx context.Context, itemIDs []string) ([]model.ItemSimple, error) {
+	if len(itemIDs) == 0 {
+		return []model.ItemSimple{}, nil
+	}
+
+	// IDのプレースホルダーを生成 (?, ?, ?, ...)
+	placeholders := make([]string, len(itemIDs))
+	args := make([]interface{}, len(itemIDs))
+	for i, id := range itemIDs {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(`
+		SELECT 
+			i.id, 
+			i.name, 
+			i.price, 
+			i.status,
+			COALESCE(MIN(img.image_url), '') AS image_url
+		FROM items i
+		LEFT JOIN item_images img ON i.id = img.item_id
+		WHERE i.id IN (%s)
+		GROUP BY i.id, i.name, i.price, i.status
+	`, strings.Join(placeholders, ","))
+
+	rows, err := dao.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fail:db.Query:%w", err)
+	}
+	defer rows.Close()
+
+	// IDでマッピングして元の順序を保持
+	itemMap := make(map[string]model.ItemSimple)
+	for rows.Next() {
+		var item model.ItemSimple
+		if err := rows.Scan(&item.ItemId, &item.Name, &item.Price, &item.Status, &item.ImageURL); err != nil {
+			return nil, fmt.Errorf("fail:rows.Scan:%w", err)
+		}
+		itemMap[item.ItemId] = item
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
+	// 元のitemIDsの順序で結果を返す
+	results := make([]model.ItemSimple, 0, len(itemIDs))
+	for _, id := range itemIDs {
+		if item, ok := itemMap[id]; ok {
+			results = append(results, item)
+		}
+	}
+
+	return results, nil
 }
 
 // PurchaseItem : 指定されたitemIDの商品を購入済みにする
