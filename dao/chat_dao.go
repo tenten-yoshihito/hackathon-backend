@@ -6,7 +6,6 @@ import (
 	"db/model"
 	"errors"
 	"fmt"
-	"log"
 )
 
 type ChatDAO interface {
@@ -28,25 +27,12 @@ func NewChatDao(db *sql.DB) ChatDAO {
 
 // CreateChatRoom : チャットルーム作成
 func (dao *chatDao) CreateChatRoom(ctx context.Context, room *model.ChatRoom) error {
-	tx, err := dao.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("fail: txBegin: %w", err)
-	}
-	defer func() {
-		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-			log.Printf("fail: tx.Rollback: %v\n", err)
-		}
-	}()
-
 	query := `INSERT INTO chat_rooms (id, item_id, buyer_id, seller_id, created_at) VALUES (?, ?, ?, ?, ?)`
-	_, err = tx.ExecContext(ctx, query, room.Id, room.ItemId, room.BuyerId, room.SellerId, room.CreatedAt)
+	_, err := dao.DB.ExecContext(ctx, query, room.Id, room.ItemId, room.BuyerId, room.SellerId, room.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("fail: insert chat_room: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("fail: tx.Commit: %w", err)
-	}
 	return nil
 }
 
@@ -105,29 +91,17 @@ func (dao *chatDao) GetChatRoomsByItemID(ctx context.Context, itemID string) ([]
 	return rooms, nil
 }
 
-// SaveMessage : メッセージ保存 
+// SaveMessage : メッセージ保存
 func (dao *chatDao) SaveMessage(ctx context.Context, msg *model.Message) error {
-	tx, err := dao.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("fail: txBegin: %w", err)
-	}
-	defer func() {
-		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-			log.Printf("fail: tx.Rollback: %v\n", err)
-		}
-	}()
-
 	query := `INSERT INTO messages (id, chat_room_id, sender_id, content, created_at) VALUES (?, ?, ?, ?, ?)`
-	_, err = tx.ExecContext(ctx, query, msg.Id, msg.ChatRoomId, msg.SenderId, msg.Content, msg.CreatedAt)
+	_, err := dao.DB.ExecContext(ctx, query, msg.Id, msg.ChatRoomId, msg.SenderId, msg.Content, msg.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("fail: insert message: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("fail: tx.Commit: %w", err)
-	}
 	return nil
 }
+
 // GetMessages : メッセージ一覧取得
 func (dao *chatDao) GetMessages(ctx context.Context, roomID string) ([]model.Message, error) {
 	query := `SELECT id, chat_room_id, sender_id, content, created_at FROM messages WHERE chat_room_id = ? ORDER BY created_at ASC`
