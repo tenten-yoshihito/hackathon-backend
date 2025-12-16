@@ -138,16 +138,32 @@ func (dao *itemDao) SearchItems(ctx context.Context, keyword string, limit int, 
 			COALESCE((SELECT image_url FROM item_images WHERE item_id = i.id LIMIT 1), '') as image_url,
 			i.status
 		FROM items i
-		WHERE i.name LIKE ?
-		ORDER BY i.created_at DESC
+		WHERE (i.name LIKE ? OR i.name LIKE ? OR i.description LIKE ?)
+		ORDER BY 
+			CASE 
+				WHEN i.name LIKE ? THEN 1
+				WHEN i.name LIKE ? THEN 2
+				ELSE 3
+			END,
+			i.created_at DESC
 		LIMIT ? OFFSET ?`
 
 	// LIKE特殊文字をエスケープ
 	escapedKeyword := escapeLikeString(keyword)
-	// キーワードの前後に % を付けて部分一致検索
-	searchKeyword := "%" + escapedKeyword + "%"
+	// 前方一致用
+	prefixKeyword := escapedKeyword + "%"
+	// 部分一致用
+	partialKeyword := "%" + escapedKeyword + "%"
 
-	rows, err := dao.DB.QueryContext(ctx, query, searchKeyword, limit, offset)
+	rows, err := dao.DB.QueryContext(ctx, query,
+		prefixKeyword,  // WHERE i.name LIKE ?（前方一致）
+		partialKeyword, // OR i.name LIKE ?（部分一致）
+		partialKeyword, // OR i.description LIKE ?（説明文部分一致）
+		prefixKeyword,  // CASE WHEN i.name LIKE ?（前方一致判定）
+		partialKeyword, // WHEN i.name LIKE ?（部分一致判定）
+		limit,
+		offset,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("fail:dao.DB.Query:%w", err)
 	}
