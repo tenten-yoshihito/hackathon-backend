@@ -91,6 +91,12 @@ func (s *geminiService) GenerateDescriptionFromImageURL(ctx context.Context, ima
 }
 
 func (s *geminiService) GenerateEmbedding(ctx context.Context, text string) ([]float32, error) {
+	// テキストが長すぎる場合に切り詰める（Gemini APIの制限回避＆エラー防止）
+	// 日本語のトークン数を考慮し、安全を見て1000文字程度でカット
+	const maxTextLength = 1000
+	if len([]rune(text)) > maxTextLength {
+		text = string([]rune(text)[:maxTextLength])
+	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  s.apiKey,

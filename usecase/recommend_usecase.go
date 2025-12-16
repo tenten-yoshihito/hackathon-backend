@@ -36,7 +36,16 @@ func (us *recommendUsecase) GetSimilarItems(ctx context.Context, targetItemID st
 
 	targetVector, ok := allEmbeddings[targetItemID]
 	if !ok {
-		return []model.ItemSimple{}, nil
+		// キャッシュにない場合（SOLD商品など）はDBから直接取得
+		vec, err := us.itemDAO.GetItemEmbedding(ctx, targetItemID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get target item embedding: %w", err)
+		}
+		if vec == nil {
+			// ベクトル自体が存在しない（商品がない、またはベクトル未生成）
+			return []model.ItemSimple{}, nil
+		}
+		targetVector = vec
 	}
 
 	// 類似度計算

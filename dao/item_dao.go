@@ -23,6 +23,7 @@ type ItemDAO interface {
 	PurchaseItem(ctx context.Context, itemID string, buyerID string) error
 	UpdateItem(ctx context.Context, itemID string, userID string, name string, price int, description string, embedding []float32) error
 	GetAllItemEmbeddings(ctx context.Context) (map[string][]float32, error)
+	GetItemEmbedding(ctx context.Context, itemID string) ([]float32, error)
 }
 
 type itemDao struct {
@@ -509,4 +510,29 @@ func (dao *itemDao) GetAllItemEmbeddings(ctx context.Context) (map[string][]floa
 	}
 
 	return result, nil
+}
+
+// GetItemEmbedding : 指定された商品IDのベクトルを取得（SOLD商品対応用）
+func (dao *itemDao) GetItemEmbedding(ctx context.Context, itemID string) ([]float32, error) {
+	query := `SELECT embedding FROM items WHERE id = ?`
+
+	var embeddingJSON []byte
+	err := dao.DB.QueryRowContext(ctx, query, itemID).Scan(&embeddingJSON)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil // Not found
+		}
+		return nil, fmt.Errorf("fail: scan embedding: %w", err)
+	}
+
+	if len(embeddingJSON) == 0 {
+		return nil, nil // No embedding data
+	}
+
+	var embedding []float32
+	if err := json.Unmarshal(embeddingJSON, &embedding); err != nil {
+		return nil, fmt.Errorf("fail: unmarshal embedding: %w", err)
+	}
+
+	return embedding, nil
 }
