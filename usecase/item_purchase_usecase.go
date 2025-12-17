@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"crypto/rand"
+	"db/cache"
 	"db/dao"
 	"db/model"
 	"fmt"
@@ -19,12 +20,14 @@ type ItemPurchase interface {
 type itemPurchase struct {
 	itemDAO         dao.ItemDAO
 	notificationDAO dao.NotificationDAO
+	embeddingCache  *cache.EmbeddingCache
 }
 
-func NewItemPurchase(itemDAO dao.ItemDAO, notificationDAO dao.NotificationDAO) ItemPurchase {
+func NewItemPurchase(itemDAO dao.ItemDAO, notificationDAO dao.NotificationDAO, embeddingCache *cache.EmbeddingCache) ItemPurchase {
 	return &itemPurchase{
 		itemDAO:         itemDAO,
 		notificationDAO: notificationDAO,
+		embeddingCache:  embeddingCache,
 	}
 }
 
@@ -64,6 +67,9 @@ func (u *itemPurchase) PurchaseItem(ctx context.Context, itemID string, buyerID 
 	if err := u.notificationDAO.CreateNotification(ctx, notification); err != nil {
 		log.Printf("Warning: failed to create notification: %v\n", err)
 	}
+
+	// キャッシュからベクトルを削除（おすすめから除外）
+	u.embeddingCache.Delete(itemID)
 
 	return nil
 }
