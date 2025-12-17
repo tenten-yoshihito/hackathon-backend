@@ -106,12 +106,15 @@ func main() {
 
 	// --- item ---
 	itemDAO := dao.NewItemDao(db)
+	// --- embedding cache (インメモリキャッシュで高速化) ---
+	embeddingCache := cache.NewEmbeddingCache(itemDAO)
+
 	itemRegister := usecase.NewItemRegister(itemDAO, geminiService)
 	itemList := usecase.NewItemList(itemDAO)
 	myItemsList := usecase.NewMyItemsList(itemDAO)
 	userItemsList := usecase.NewUserItemsList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
-	itemPurchase := usecase.NewItemPurchase(itemDAO, notificationDAO)
+	itemPurchase := usecase.NewItemPurchase(itemDAO, notificationDAO, embeddingCache)
 	itemUpdate := usecase.NewItemUpdate(itemDAO, geminiService)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
 
@@ -129,9 +132,6 @@ func main() {
 	likeDAO := dao.NewLikeDao(db)
 	likeUsecase := usecase.NewLikeUsecase(likeDAO)
 	likeController := controller.NewLikeController(likeUsecase)
-
-	// --- embedding cache (インメモリキャッシュで高速化) ---
-	embeddingCache := cache.NewEmbeddingCache(itemDAO)
 
 	// --- recommend ---
 	recommendUsecase := usecase.NewRecommendUsecase(itemDAO, likeDAO, embeddingCache)
