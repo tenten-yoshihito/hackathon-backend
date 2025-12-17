@@ -59,28 +59,14 @@ func (dao *userDao) List(ctx context.Context) ([]model.User, error) {
 // DBInsert 指定されたuerをinsertする
 func (dao *userDao) DBInsert(ctx context.Context, user *model.User) error {
 
-	tx, err := dao.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("fail:txBegin(): %w", err)
-	}
-
-	defer func() {
-		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-			log.Printf("fail:tx.Rollback,%v\n", err)
-		}
-	}()
-
 	now := time.Now()
 	query := `INSERT INTO users 
               (id, name, age, email, bio, icon_url, created_at, updated_at) 
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
-	_, err = tx.ExecContext(ctx, query, user.Id, user.Name, user.Age, user.Email, user.Bio, user.IconURL, now, now)
+	_, err := dao.DB.ExecContext(ctx, query, user.Id, user.Name, user.Age, user.Email, user.Bio, user.IconURL, now, now)
 	if err != nil {
 		return fmt.Errorf("fail:db.Exec: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("fail:tx.Commit: %w", err)
 	}
 
 	return nil
@@ -115,25 +101,14 @@ func (dao *userDao) GetUser(ctx context.Context, id string) (*model.User, error)
 
 // UpdateUser : ユーザー情報を更新
 func (dao *userDao) UpdateUser(ctx context.Context, user *model.User) error {
-	tx, err := dao.DB.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("fail:txBegin(): %w", err)
-	}
-
-	defer func() {
-		if err := tx.Rollback(); err != nil && !errors.Is(err, sql.ErrTxDone) {
-			log.Printf("fail:tx.Rollback,%v\n", err)
-		}
-	}()
-
 	now := time.Now()
 	query := `UPDATE users 
               SET name = ?, age = ?, bio = ?, icon_url = ?, updated_at = ? 
               WHERE id = ?`
 
-	result, err := tx.ExecContext(ctx, query, user.Name, user.Age, user.Bio, user.IconURL, now, user.Id)
+	result, err := dao.DB.ExecContext(ctx, query, user.Name, user.Age, user.Bio, user.IconURL, now, user.Id)
 	if err != nil {
-		return fmt.Errorf("fail:tx.Exec: %w", err)
+		return fmt.Errorf("fail:db.Exec: %w", err)
 	}
 
 	rowsAffected, err := result.RowsAffected()
@@ -143,10 +118,6 @@ func (dao *userDao) UpdateUser(ctx context.Context, user *model.User) error {
 
 	if rowsAffected == 0 {
 		return fmt.Errorf("user not found")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("fail:tx.Commit: %w", err)
 	}
 
 	return nil

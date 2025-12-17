@@ -6,6 +6,7 @@ import (
 	"db/dao"
 	"db/model"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/oklog/ulid"
@@ -22,11 +23,17 @@ type ChatUsecase interface {
 }
 
 type chatUsecase struct {
-	chatDAO dao.ChatDAO
+	chatDAO         dao.ChatDAO
+	itemDAO         dao.ItemDAO
+	notificationDAO dao.NotificationDAO
 }
 
-func NewChatUsecase(dao dao.ChatDAO) ChatUsecase {
-	return &chatUsecase{chatDAO: dao}
+func NewChatUsecase(chatDAO dao.ChatDAO, itemDAO dao.ItemDAO, notificationDAO dao.NotificationDAO) ChatUsecase {
+	return &chatUsecase{
+		chatDAO:         chatDAO,
+		itemDAO:         itemDAO,
+		notificationDAO: notificationDAO,
+	}
 }
 
 // GetOrCreateChatRoom :チャットルームがあれば取得、なければ作成して返す
@@ -83,7 +90,52 @@ func (u *chatUsecase) SendMessage(ctx context.Context, roomID, senderID, content
 		CreatedAt:  t,
 	}
 
-	return u.chatDAO.SaveMessage(ctx, msg)
+	if err := u.chatDAO.SaveMessage(ctx, msg); err != nil {
+		return err
+	}
+
+	// チャットルーム情報を取得
+	room, err := u.chatDAO.GetChatRoomByID(ctx, roomID)
+	if err != nil {
+		log.Printf("Warning: failed to get chat room: %v\n", err)
+		return nil
+	}
+
+	// 商品情報を取得
+	item, err := u.itemDAO.GetItem(ctx, room.ItemId)
+	if err != nil {
+		log.Printf("Warning: failed to get item: %v\n", err)
+		return nil
+	}
+
+	// コメント通知を作成（相手に通知）
+	var recipientID string
+	switch senderID {
+	case room.BuyerId:
+		recipientID = room.SellerId
+	case room.SellerId:
+		recipientID = room.BuyerId
+	default:
+		return nil
+	}
+
+	notificationID := ulid.MustNew(ulid.Timestamp(t), entropy).String()
+	notification := &model.Notification{
+		Id:        notificationID,
+		UserId:    recipientID,
+		Type:      "comment",
+		ItemId:    room.ItemId,
+		ItemName:  item.Name,
+		Message:   fmt.Sprintf("%sにコメントがつきました", item.Name),
+		IsRead:    false,
+		CreatedAt: t,
+	}
+
+	if err := u.notificationDAO.CreateNotification(ctx, notification); err != nil {
+		log.Printf("Warning: failed to create notification: %v\n", err)
+	}
+
+	return nil
 }
 
 // GetMessages :メッセージ履歴を取得

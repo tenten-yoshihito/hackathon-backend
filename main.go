@@ -101,6 +101,9 @@ func main() {
 	userUpdate := usecase.NewUserUpdate(userDAO)
 	userController := controller.NewUserController(userRegister, userSearch, userGet, userUpdate)
 
+	// --- notification ---
+	notificationDAO := dao.NewNotificationDAO(db)
+
 	// --- item ---
 	itemDAO := dao.NewItemDao(db)
 	itemRegister := usecase.NewItemRegister(itemDAO, geminiService)
@@ -108,7 +111,7 @@ func main() {
 	myItemsList := usecase.NewMyItemsList(itemDAO)
 	userItemsList := usecase.NewUserItemsList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
-	itemPurchase := usecase.NewItemPurchase(itemDAO)
+	itemPurchase := usecase.NewItemPurchase(itemDAO, notificationDAO)
 	itemUpdate := usecase.NewItemUpdate(itemDAO, geminiService)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
 
@@ -119,7 +122,7 @@ func main() {
 
 	// --- chat ---
 	chatDAO := dao.NewChatDao(db)
-	chatUsecase := usecase.NewChatUsecase(chatDAO)
+	chatUsecase := usecase.NewChatUsecase(chatDAO, itemDAO, notificationDAO)
 	chatController := controller.NewChatController(chatUsecase)
 
 	// --- like ---
@@ -133,6 +136,9 @@ func main() {
 	// --- recommend ---
 	recommendUsecase := usecase.NewRecommendUsecase(itemDAO, likeDAO, embeddingCache)
 	recommendController := controller.NewRecommendController(recommendUsecase)
+
+	// --- notification controller ---
+	notificationController := controller.NewNotificationController(notificationDAO)
 
 	// --- 実際の処理 ---
 
@@ -170,6 +176,13 @@ func main() {
 	mux.Handle("GET /items/{item_id}/chat_rooms", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetChatRoomList)))
 	mux.Handle("GET /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleGetMessages)))
 	mux.Handle("POST /chats/{room_id}/messages", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(chatController.HandleSendMessage)))
+
+	// Notification Endpoints
+	mux.Handle("GET /notifications", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(notificationController.HandleGetNotifications)))
+	mux.Handle("GET /notifications/unread", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(notificationController.HandleGetUnreadCount)))
+	mux.Handle("PUT /notifications/{id}/read", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(notificationController.HandleMarkAsRead)))
+	mux.Handle("PUT /notifications/read-all", middleware.FirebaseAuthMiddleware(authClient, http.HandlerFunc(notificationController.HandleMarkAllAsRead)))
+
 	// CORS Middlewareを適用
 	wrappedHandler := middleware.CORSMiddleware(mux)
 
