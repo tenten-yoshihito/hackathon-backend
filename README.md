@@ -32,7 +32,7 @@ Controller → Usecase → DAO → Database
 
 ---
 
-## 📂 ディレクトリ詳細
+## ディレクトリ詳細
 
 ### 1. `controller/`
 HTTPリクエストを受け取り、レスポンスを返す層(url情報もここで取る)
