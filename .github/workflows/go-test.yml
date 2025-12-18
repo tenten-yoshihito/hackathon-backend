@@ -3,19 +3,12 @@ name: Go Test
 on:
   push:
     branches: [ "main" ]
-    paths:
-      - 'hackathon-backend/**'
   pull_request:
     branches: [ "main" ]
-    paths:
-      - 'hackathon-backend/**'
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./hackathon-backend
 
     steps:
     - uses: actions/checkout@v4
@@ -23,7 +16,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
-        go-version: '1.25'
+        go-version: '1.23'
 
     - name: Test
       run: go test -v ./...
