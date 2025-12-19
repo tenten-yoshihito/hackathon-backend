@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"crypto/rand"
+	"db/cache"
 	"db/dao"
 	"db/model"
 	"db/service"
@@ -22,10 +23,11 @@ type ItemRegister interface {
 type itemRegister struct {
 	itemDAO       dao.ItemDAO
 	geminiService service.GeminiService
+	embeddingCache *cache.EmbeddingCache
 }
 
-func NewItemRegister(dao dao.ItemDAO, geminiService service.GeminiService) ItemRegister {
-	return &itemRegister{itemDAO: dao, geminiService: geminiService}
+func NewItemRegister(dao dao.ItemDAO, geminiService service.GeminiService, embeddingCache *cache.EmbeddingCache) ItemRegister {
+	return &itemRegister{itemDAO: dao, geminiService: geminiService, embeddingCache: embeddingCache}
 }
 
 func (us *itemRegister) RegisterItem(ctx context.Context, uid string, req *model.ItemCreateRequest) (string, error) {
@@ -59,6 +61,9 @@ func (us *itemRegister) RegisterItem(ctx context.Context, uid string, req *model
 	if err != nil {
 		return "", fmt.Errorf("fail:itemDAO.ItemInsert: %w", err)
 	}
+
+	// キャッシュも即時更新
+	us.embeddingCache.Set(newItemID, embedding)
 
 	return newItemID, nil
 }

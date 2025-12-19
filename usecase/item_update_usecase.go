@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"db/cache"
 	"db/dao"
 	"db/model"
 	"db/service"
@@ -13,12 +14,13 @@ type ItemUpdate interface {
 }
 
 type itemUpdate struct {
-	itemDAO       dao.ItemDAO
-	geminiService service.GeminiService
+	itemDAO        dao.ItemDAO
+	geminiService  service.GeminiService
+	embeddingCache *cache.EmbeddingCache
 }
 
-func NewItemUpdate(itemDAO dao.ItemDAO, geminiService service.GeminiService) ItemUpdate {
-	return &itemUpdate{itemDAO: itemDAO, geminiService: geminiService}
+func NewItemUpdate(itemDAO dao.ItemDAO, geminiService service.GeminiService, embeddingCache *cache.EmbeddingCache) ItemUpdate {
+	return &itemUpdate{itemDAO: itemDAO, geminiService: geminiService, embeddingCache: embeddingCache}
 }
 
 func (u *itemUpdate) UpdateItem(ctx context.Context, req *model.ItemUpdateRequest) error {
@@ -35,6 +37,9 @@ func (u *itemUpdate) UpdateItem(ctx context.Context, req *model.ItemUpdateReques
 	if err != nil {
 		return fmt.Errorf("failed to update item: %w", err)
 	}
+
+	// キャッシュも即時更新
+	u.embeddingCache.Set(req.ItemID, embedding)
 
 	return nil
 }

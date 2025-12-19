@@ -109,13 +109,13 @@ func main() {
 	// --- embedding cache (インメモリキャッシュで高速化) ---
 	embeddingCache := cache.NewEmbeddingCache(itemDAO)
 
-	itemRegister := usecase.NewItemRegister(itemDAO, geminiService)
+	itemRegister := usecase.NewItemRegister(itemDAO, geminiService, embeddingCache)
 	itemList := usecase.NewItemList(itemDAO)
 	myItemsList := usecase.NewMyItemsList(itemDAO)
 	userItemsList := usecase.NewUserItemsList(itemDAO)
 	itemGet := usecase.NewItemGet(itemDAO)
 	itemPurchase := usecase.NewItemPurchase(itemDAO, notificationDAO, embeddingCache)
-	itemUpdate := usecase.NewItemUpdate(itemDAO, geminiService)
+	itemUpdate := usecase.NewItemUpdate(itemDAO, geminiService, embeddingCache)
 	descriptionGenerate := usecase.NewDescriptionGenerate(geminiService)
 
 	// Item controllers (refactored into 3 specialized controllers)
